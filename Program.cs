@@ -1,3 +1,6 @@
+// Copyright (C) 2026 slatkisasa
+// SPDX-License-Identifier: AGPL-3.0-only
+
 using BNetSwitcher.Services;
 using BNetSwitcher.UI;
 

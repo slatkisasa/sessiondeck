@@ -1,0 +1,96 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release_please:
+    name: Prepare or create release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+
+    steps:
+      - name: Update release pull request or create release
+        id: release
+        uses: googleapis/release-please-action@v5
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  build-release:
+    name: Build and attach Windows release
+    needs: release_please
+    if: needs.release_please.outputs.release_created == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release_please.outputs.tag_name }}
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Run self-tests
+        shell: pwsh
+        run: |
+          dotnet run `
+            --project BNetSwitcher.csproj `
+            --configuration Release `
+            -- `
+            --self-test
+
+      - name: Publish portable executable
+        shell: pwsh
+        run: |
+          dotnet publish BNetSwitcher.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --output publish `
+            -p:Version=${{ needs.release_please.outputs.version }}
+
+      - name: Package release files
+        id: package
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.release_please.outputs.tag_name }}
+        run: |
+          $assetName = "BNetSwitcher-$env:RELEASE_TAG-win-x64.exe"
+          New-Item -ItemType Directory -Path release -Force | Out-Null
+          Copy-Item -LiteralPath publish\BNetSwitcher.exe -Destination "release\$assetName"
+
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath "release\$assetName").Hash.ToLowerInvariant()
+          "$hash  $assetName" | Set-Content -LiteralPath release\checksums-sha256.txt -Encoding utf8NoBOM
+          "asset_name=$assetName" >> $env:GITHUB_OUTPUT
+
+      - name: Attach files to GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.release_please.outputs.tag_name }}
+          ASSET_NAME: ${{ steps.package.outputs.asset_name }}
+        run: |
+          gh release upload $env:RELEASE_TAG `
+            "release\$env:ASSET_NAME" `
+            release\checksums-sha256.txt `
+            --clobber
