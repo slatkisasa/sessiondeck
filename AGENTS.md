@@ -33,6 +33,8 @@ SessionDeck is a small Windows 11 x64 WinForms application for switching between
 ## Git and releases
 
 - Work on short-lived `feat/`, `fix/`, `hotfix/`, `chore/`, or `docs/` branches and merge through a pull request into `main`.
+- `main` requires a pull request, squash merge, and a passing `Build and test (Windows x64)` check. Direct pushes, force-pushes, and deletion are blocked.
+- CI runs for pull requests and manual dispatches. Release automation runs after relevant pushes to `main`; documentation-only and workflow-only changes are ignored.
 - Use Conventional Commit pull-request titles. Prefer squash merging because Release Please uses the resulting commit to generate versions and changelog entries.
 - Use `feat:` for a minor release, `fix:` for a patch release, and `!` for a breaking release. A `hotfix/` branch still uses a `fix:` pull-request title.
 - Let Release Please update version metadata and generated release sections in `CHANGELOG.md`. Do not create release tags manually during normal development.
