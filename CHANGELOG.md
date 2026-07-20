@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/slatkisasa/sessiondeck/compare/v0.2.0...v0.3.0) (2026-07-20)
+
+
+### Features
+
+* remove legacy account migration ([#8](https://github.com/slatkisasa/sessiondeck/issues/8)) ([9e7e44c](https://github.com/slatkisasa/sessiondeck/commit/9e7e44cc37fa102cadc67a92ca2c523b6dcfe91d))
+
 ## [0.2.0](https://github.com/slatkisasa/sessiondeck/compare/v0.1.0...v0.2.0) (2026-07-20)
 
 
