@@ -67,7 +67,7 @@ Battle.net keeps authenticated sessions itself. SessionDeck does **not** save pa
 
 SessionDeck reads account identifiers that Battle.net has already written to `%APPDATA%\Battle.net\Battle.net.config`. When you switch accounts, it safely moves the selected identifier to the front of `Client.SavedAccountNames`, then restarts Battle.net. Other Battle.net settings are kept unchanged.
 
-Before changing the Battle.net configuration, SessionDeck creates a backup in `%LOCALAPPDATA%\SessionDeck\Backups`. Existing data from `%LOCALAPPDATA%\BNetSwitcher` is imported automatically without overwriting newer SessionDeck data.
+Before changing the Battle.net configuration, SessionDeck creates a backup in `%LOCALAPPDATA%\SessionDeck\Backups`.
 
 ## Data and privacy
 

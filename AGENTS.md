@@ -10,7 +10,7 @@ SessionDeck is a small Windows 11 x64 WinForms application for switching between
 
 - Target .NET 8 and Windows Forms. The published artifact is a self-contained, single-file `win-x64` executable.
 - Keep UI code in `UI/`, persisted-data models in `Models/`, and launcher/configuration logic in `Services/`.
-- `AccountStore` owns SessionDeck metadata under `%LOCALAPPDATA%\SessionDeck`; `AppPaths` safely imports legacy `%LOCALAPPDATA%\BNetSwitcher` data without overwriting current data.
+- `AccountStore` owns SessionDeck metadata under `%LOCALAPPDATA%\SessionDeck`; `AppPaths` owns the default data, Battle.net configuration, backup, and launcher paths.
 - `BattleNetConfig` owns narrowly scoped changes to `%APPDATA%\Battle.net\Battle.net.config`.
 - `BattleNetService` owns stopping, starting, and locating the Battle.net launcher.
 
@@ -21,7 +21,7 @@ SessionDeck is a small Windows 11 x64 WinForms application for switching between
 - Preserve unknown Battle.net configuration fields and create a backup before every live configuration write.
 - Stop Battle.net before changing its configuration and use safe replacement semantics so an interrupted write cannot corrupt the file.
 - Do not add telemetry, analytics, remote APIs, auto-fill, credential-manager access, or administrator requirements without explicit approval.
-- Tests must use temporary paths and must never read or modify the user's live Battle.net, SessionDeck, or legacy BNet Switcher data.
+- Tests must use temporary paths and must never read or modify the user's live Battle.net or SessionDeck data.
 
 ## Build and verification
 

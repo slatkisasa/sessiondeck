@@ -22,7 +22,6 @@ internal static class Program
         try
         {
             var paths = AppPaths.CreateDefault();
-            paths.ImportLegacyData();
             var accountStore = new AccountStore(paths.AccountsFile);
             var battleNet = new BattleNetService(paths);
             Application.Run(new MainForm(accountStore, battleNet));
