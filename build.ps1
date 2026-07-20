@@ -11,7 +11,7 @@ $env:NUGET_PACKAGES = Join-Path $projectRoot ".nuget-packages"
 $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = "1"
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = "1"
 
-& $dotnet publish (Join-Path $projectRoot "BNetSwitcher.csproj") `
+& $dotnet publish (Join-Path $projectRoot "SessionDeck.csproj") `
     --configuration $Configuration `
     --runtime win-x64 `
     --self-contained true `
@@ -21,4 +21,4 @@ if ($LASTEXITCODE -ne 0) {
     throw "The build failed with exit code $LASTEXITCODE."
 }
 
-Write-Host "Portable executable: $(Join-Path $projectRoot 'dist\BNetSwitcher.exe')"
+Write-Host "Portable executable: $(Join-Path $projectRoot 'dist\SessionDeck.exe')"

@@ -1,34 +1,36 @@
-# BNet Switcher
+# SessionDeck
 
-A small personal Windows 11 account switcher for the Battle.net desktop app.
+A portable Windows 11 account session switcher for the Battle.net desktop app.
+
+SessionDeck is an independent project and is not affiliated with or endorsed by Blizzard Entertainment.
 
 ## How it works
 
-Battle.net keeps authenticated sessions itself. BNet Switcher does **not** save passwords, authentication tokens, browser data, or a full copy of the launcher profile. It remembers account identifiers already present in `%APPDATA%\Battle.net\Battle.net.config` and safely changes which identifier appears first in `Client.SavedAccountNames`.
+Battle.net keeps authenticated sessions itself. SessionDeck does **not** save passwords, authentication tokens, browser data, or a full copy of the launcher profile. It remembers account identifiers already present in `%APPDATA%\Battle.net\Battle.net.config` and safely changes which identifier appears first in `Client.SavedAccountNames`.
 
-Every config change is backed up under `%LOCALAPPDATA%\BNetSwitcher\Backups` before Battle.net is restarted. Unrelated Battle.net settings are preserved.
+Every config change is backed up under `%LOCALAPPDATA%\SessionDeck\Backups` before Battle.net is restarted. Unrelated Battle.net settings are preserved. Existing data from `%LOCALAPPDATA%\BNetSwitcher` is imported automatically without overwriting newer SessionDeck data.
 
 ## First-time setup
 
-1. Open `BNetSwitcher.exe`.
+1. Open `SessionDeck.exe`.
 2. Click **Capture current** to save the Battle.net account currently selected by the launcher.
 3. Click **Sign in new...** to open Battle.net at its sign-in screen.
 4. Sign into the other account and enable **Stay logged in**.
-5. Return to BNet Switcher and click **Capture current**.
+5. Return to SessionDeck and click **Capture current**.
 6. Double-click an account, or select it and click **Switch account**.
 
 If Battle.net expires a session, authenticate normally in Battle.net and capture the account again if needed.
 
 ## Data and privacy
 
-- Account labels and identifiers: `%LOCALAPPDATA%\BNetSwitcher\accounts.json`
-- Config backups: `%LOCALAPPDATA%\BNetSwitcher\Backups`
+- Account labels and identifiers: `%LOCALAPPDATA%\SessionDeck\accounts.json`
+- Config backups: `%LOCALAPPDATA%\SessionDeck\Backups`
 - No network calls, telemetry, password collection, or auto-fill
 - The application runs as the current user and does not request administrator access
 
 ## Download and portability
 
-The release executable is self-contained for Windows x64. It includes the .NET Desktop Runtime and Windows Forms libraries, so users do not need to install .NET, run an installer, or have administrator access before opening BNet Switcher.
+The release executable is self-contained for Windows x64. It includes the .NET Desktop Runtime and Windows Forms libraries, so users do not need to install .NET, run an installer, or have administrator access before opening SessionDeck.
 
 Bundling those dependencies makes the executable much larger than the application code itself. This is intentional: the single download remains portable and works on a normal Windows 11 x64 installation without a separate runtime dependency.
 
@@ -42,12 +44,12 @@ Run:
 .\build.ps1
 ```
 
-The self-contained Windows x64 executable is written to `dist\BNetSwitcher.exe`.
+The self-contained Windows x64 executable is written to `dist\SessionDeck.exe`.
 
 To run the built-in non-destructive tests:
 
 ```powershell
-.\.dotnet-sdk\dotnet.exe run --project .\BNetSwitcher.csproj -- --self-test
+.\.dotnet-sdk\dotnet.exe run --project .\SessionDeck.csproj -- --self-test
 ```
 
 The tests operate only on temporary files and do not touch the live Battle.net configuration.
@@ -64,4 +66,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch, pull request, and release
 
 Copyright © 2026 [slatkisasa](https://github.com/slatkisasa).
 
-BNet Switcher is licensed under the [GNU Affero General Public License v3.0](LICENSE.md). You may use, modify, and distribute it, including commercially, provided you follow the license. In particular, copyright and license notices must remain intact, and covered modifications must make their corresponding source available under the same license.
+SessionDeck is licensed under the [GNU Affero General Public License v3.0](LICENSE.md). You may use, modify, and distribute it, including commercially, provided you follow the license. In particular, copyright and license notices must remain intact, and covered modifications must make their corresponding source available under the same license.

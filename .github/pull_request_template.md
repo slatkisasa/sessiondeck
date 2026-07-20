@@ -4,7 +4,7 @@ Describe what changed and why.
 
 ## Validation
 
-- [ ] `dotnet build BNetSwitcher.csproj --configuration Release`
+- [ ] `dotnet build SessionDeck.csproj --configuration Release`
 - [ ] Self-tests pass
 - [ ] Relevant behavior was checked manually
 
