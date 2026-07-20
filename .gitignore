@@ -1,0 +1,14 @@
+.dotnet-sdk/
+.dotnet-cli-home/
+.nuget-packages/
+bin/
+obj/
+dist/
+*.user
+*.suo
+.vs/
+
+# The application stores personal account metadata outside the repository,
+# under %LOCALAPPDATA%\BNetSwitcher.
+accounts.json
+Backups/
