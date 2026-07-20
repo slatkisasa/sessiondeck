@@ -48,7 +48,7 @@ The tests operate only on temporary files and do not touch the live Battle.net c
 
 Changes are developed on short-lived branches such as `feat/tray-menu`, `fix/window-resize`, or `hotfix/session-restore`, then merged into `main` through pull requests.
 
-Pull request titles use Conventional Commit format. Release Please uses those titles to maintain `CHANGELOG.md`, choose the next semantic version, and open a release pull request. Merging that release pull request creates a GitHub Release containing the self-contained Windows x64 executable and its SHA-256 checksum.
+Pull request titles use Conventional Commit format. Release Please uses those titles to maintain `CHANGELOG.md`, choose the next semantic version, and open a release pull request. Merging that release pull request creates a GitHub Release whose notes contain the generated changelog and whose only downloadable asset is the self-contained Windows x64 executable.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch, pull request, and release conventions.
 

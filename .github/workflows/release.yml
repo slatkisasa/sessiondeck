@@ -78,9 +78,6 @@ jobs:
           $assetName = "BNetSwitcher-$env:RELEASE_TAG-win-x64.exe"
           New-Item -ItemType Directory -Path release -Force | Out-Null
           Copy-Item -LiteralPath publish\BNetSwitcher.exe -Destination "release\$assetName"
-
-          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath "release\$assetName").Hash.ToLowerInvariant()
-          "$hash  $assetName" | Set-Content -LiteralPath release\checksums-sha256.txt -Encoding utf8NoBOM
           "asset_name=$assetName" >> $env:GITHUB_OUTPUT
 
       - name: Attach files to GitHub Release
@@ -92,5 +89,4 @@ jobs:
         run: |
           gh release upload $env:RELEASE_TAG `
             "release\$env:ASSET_NAME" `
-            release\checksums-sha256.txt `
             --clobber
