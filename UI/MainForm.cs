@@ -14,6 +14,7 @@ public sealed class MainForm : Form
     private readonly Button _newLoginButton = new();
     private readonly Button _renameButton = new();
     private readonly Button _removeButton = new();
+    private readonly ToolTip _tooltips = new() { AutoPopDelay = 8000, InitialDelay = 350, ReshowDelay = 100 };
     private readonly CancellationTokenSource _shutdown = new();
     private List<AccountRecord> _accounts = [];
 
@@ -21,36 +22,66 @@ public sealed class MainForm : Form
     {
         _accountStore = accountStore;
         _battleNet = battleNet;
+        SetStyle(
+            ControlStyles.AllPaintingInWmPaint |
+            ControlStyles.OptimizedDoubleBuffer |
+            ControlStyles.ResizeRedraw,
+            true);
         BuildInterface();
         LoadAccounts();
+    }
+
+    protected override CreateParams CreateParams
+    {
+        get
+        {
+            const int wsExComposited = 0x02000000;
+            var parameters = base.CreateParams;
+            parameters.ExStyle |= wsExComposited;
+            return parameters;
+        }
     }
 
     private void BuildInterface()
     {
         Text = "BNet Switcher";
-        ClientSize = new Size(680, 410);
-        MinimumSize = new Size(620, 400);
+        ClientSize = new Size(700, 430);
+        MinimumSize = new Size(660, 420);
         StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Segoe UI", 9F);
+        AutoScaleMode = AutoScaleMode.Dpi;
+
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 5,
+            Padding = new Padding(20, 16, 20, 14)
+        };
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         var title = new Label
         {
             Text = "Battle.net accounts",
             Font = new Font("Segoe UI Semibold", 16F),
-            Location = new Point(18, 15),
-            AutoSize = true
+            AutoSize = true,
+            Margin = new Padding(0)
         };
         var subtitle = new Label
         {
             Text = "Battle.net keeps the login session. This app only saves which account to open.",
             ForeColor = SystemColors.GrayText,
-            Location = new Point(20, 48),
-            AutoSize = true
+            AutoSize = true,
+            Margin = new Padding(0, 0, 0, 10)
         };
 
-        _grid.Location = new Point(20, 78);
-        _grid.Size = new Size(640, 226);
-        _grid.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+        _grid.Dock = DockStyle.Fill;
+        _grid.Margin = new Padding(0, 0, 0, 10);
         _grid.AllowUserToAddRows = false;
         _grid.AllowUserToDeleteRows = false;
         _grid.AllowUserToResizeRows = false;
@@ -89,16 +120,12 @@ public sealed class MainForm : Form
             }
         };
 
-        ConfigureButton(_captureButton, "Capture current", new Point(20, 319), 112);
-        ConfigureButton(_newLoginButton, "Sign in new...", new Point(138, 319), 104);
-        ConfigureButton(_renameButton, "Rename", new Point(248, 319), 82);
-        ConfigureButton(_removeButton, "Remove", new Point(336, 319), 82);
-        ConfigureButton(_switchButton, "Switch account", new Point(526, 319), 134);
-        _switchButton.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-        _captureButton.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-        _newLoginButton.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-        _renameButton.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-        _removeButton.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+        ConfigureButton(_captureButton, "Save current");
+        ConfigureButton(_newLoginButton, "Add account...");
+        ConfigureButton(_renameButton, "Rename");
+        ConfigureButton(_removeButton, "Remove");
+        ConfigureButton(_switchButton, "Switch");
+        _switchButton.MinimumSize = new Size(110, 34);
 
         _captureButton.Click += (_, _) => CaptureCurrent();
         _newLoginButton.Click += async (_, _) => await StartNewSignInAsync();
@@ -106,24 +133,59 @@ public sealed class MainForm : Form
         _removeButton.Click += (_, _) => RemoveSelected();
         _switchButton.Click += async (_, _) => await SwitchSelectedAsync();
 
-        _status.Location = new Point(20, 367);
-        _status.Size = new Size(640, 24);
-        _status.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+        _tooltips.SetToolTip(_captureButton, "Save the account currently selected in Battle.net.");
+        _tooltips.SetToolTip(_newLoginButton, "Open Battle.net's sign-in screen so you can add another account.");
+        _tooltips.SetToolTip(_renameButton, "Change the selected account's display name in this app.");
+        _tooltips.SetToolTip(_removeButton, "Remove the selected account from this app only.");
+        _tooltips.SetToolTip(_switchButton, "Restart Battle.net using the selected saved session.");
+
+        var secondaryButtons = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            Margin = new Padding(0),
+            WrapContents = true
+        };
+        secondaryButtons.Controls.AddRange([_captureButton, _newLoginButton, _renameButton, _removeButton]);
+
+        var toolbar = new TableLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 2,
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0, 0, 0, 10)
+        };
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        toolbar.Controls.Add(secondaryButtons, 0, 0);
+        toolbar.Controls.Add(_switchButton, 1, 0);
+
+        _status.Dock = DockStyle.Fill;
         _status.ForeColor = SystemColors.GrayText;
         _status.AutoEllipsis = true;
+        _status.AutoSize = true;
+        _status.Margin = new Padding(0);
 
-        Controls.AddRange([
-            title, subtitle, _grid, _captureButton, _newLoginButton,
-            _renameButton, _removeButton, _switchButton, _status
-        ]);
+        layout.Controls.Add(title, 0, 0);
+        layout.Controls.Add(subtitle, 0, 1);
+        layout.Controls.Add(_grid, 0, 2);
+        layout.Controls.Add(toolbar, 0, 3);
+        layout.Controls.Add(_status, 0, 4);
+        Controls.Add(layout);
         FormClosing += (_, _) => _shutdown.Cancel();
     }
 
-    private static void ConfigureButton(Button button, string text, Point location, int width)
+    private static void ConfigureButton(Button button, string text)
     {
         button.Text = text;
-        button.Location = location;
-        button.Size = new Size(width, 32);
+        button.AutoSize = true;
+        button.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        button.MinimumSize = new Size(86, 34);
+        button.Padding = new Padding(8, 0, 8, 0);
+        button.Margin = new Padding(0, 0, 6, 0);
     }
 
     private void LoadAccounts()

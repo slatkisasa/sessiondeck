@@ -8,13 +8,13 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        ApplicationConfiguration.Initialize();
+
         if (args.Contains("--self-test", StringComparer.OrdinalIgnoreCase))
         {
             Environment.ExitCode = SelfTests.Run();
             return;
         }
-
-        ApplicationConfiguration.Initialize();
 
         try
         {

@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using BNetSwitcher.Models;
+using BNetSwitcher.UI;
 
 namespace BNetSwitcher.Services;
 
@@ -12,6 +13,7 @@ internal static class SelfTests
         {
             TestAccountStore(directory.FullName);
             TestConfigSwitching(directory.FullName);
+            TestResponsiveLayout(directory.FullName);
             Console.WriteLine("All self-tests passed.");
             return 0;
         }
@@ -70,6 +72,60 @@ internal static class SelfTests
 
         config.PrepareNewSignIn();
         Require(config.GetRememberedAccounts().Count == 0, "New sign-in did not clear the selected account field.");
+    }
+
+    private static void TestResponsiveLayout(string directory)
+    {
+        var dataDirectory = Path.Combine(directory, "layout-data");
+        var configPath = Path.Combine(directory, "layout-Battle.net.config");
+        var launcherPath = Path.Combine(directory, "Battle.net Launcher.exe");
+        File.WriteAllText(
+            configPath,
+            """{"Client":{"SavedAccountNames":"layout@example.invalid"}}""");
+        File.WriteAllBytes(launcherPath, []);
+
+        var paths = new AppPaths(
+            dataDirectory,
+            Path.Combine(dataDirectory, "accounts.json"),
+            Path.Combine(dataDirectory, "Backups"),
+            configPath,
+            launcherPath);
+        using var form = new MainForm(new AccountStore(paths.AccountsFile), new BattleNetService(paths));
+        _ = form.Handle;
+
+        foreach (var size in new[] { new Size(644, 381), new Size(1000, 700) })
+        {
+            form.ClientSize = size;
+            PerformLayoutRecursively(form);
+            foreach (var button in Descendants(form).OfType<Button>())
+            {
+                var preferredWidth = button.GetPreferredSize(Size.Empty).Width;
+                Require(button.Width >= preferredWidth, $"Button '{button.Text}' is narrower than its text.");
+                Require(button.Left >= 0 && button.Right <= button.Parent!.ClientSize.Width,
+                    $"Button '{button.Text}' is outside its layout container.");
+            }
+        }
+    }
+
+    private static void PerformLayoutRecursively(Control control)
+    {
+        control.PerformLayout();
+        foreach (Control child in control.Controls)
+        {
+            PerformLayoutRecursively(child);
+        }
+    }
+
+    private static IEnumerable<Control> Descendants(Control parent)
+    {
+        foreach (Control child in parent.Controls)
+        {
+            yield return child;
+            foreach (var descendant in Descendants(child))
+            {
+                yield return descendant;
+            }
+        }
     }
 
     private static void Require(bool condition, string message)
