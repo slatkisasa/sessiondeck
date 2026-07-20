@@ -26,7 +26,15 @@ If Battle.net expires a session, authenticate normally in Battle.net and capture
 - No network calls, telemetry, password collection, or auto-fill
 - The application runs as the current user and does not request administrator access
 
+## Download and portability
+
+The release executable is self-contained for Windows x64. It includes the .NET Desktop Runtime and Windows Forms libraries, so users do not need to install .NET, run an installer, or have administrator access before opening BNet Switcher.
+
+Bundling those dependencies makes the executable much larger than the application code itself. This is intentional: the single download remains portable and works on a normal Windows 11 x64 installation without a separate runtime dependency.
+
 ## Build
+
+Building from source requires the [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0). Regular users downloading the release executable do not need the SDK or the .NET Desktop Runtime.
 
 Run:
 
