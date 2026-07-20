@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 using System.Diagnostics;
-using BNetSwitcher.Models;
+using SessionDeck.Models;
 
-namespace BNetSwitcher.Services;
+namespace SessionDeck.Services;
 
 public sealed class BattleNetService
 {

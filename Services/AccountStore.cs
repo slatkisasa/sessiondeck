@@ -3,9 +3,9 @@
 
 using System.Text;
 using System.Text.Json;
-using BNetSwitcher.Models;
+using SessionDeck.Models;
 
-namespace BNetSwitcher.Services;
+namespace SessionDeck.Services;
 
 public sealed class AccountStore
 {

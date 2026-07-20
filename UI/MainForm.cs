@@ -1,10 +1,10 @@
 // Copyright (C) 2026 slatkisasa
 // SPDX-License-Identifier: AGPL-3.0-only
 
-using BNetSwitcher.Models;
-using BNetSwitcher.Services;
+using SessionDeck.Models;
+using SessionDeck.Services;
 
-namespace BNetSwitcher.UI;
+namespace SessionDeck.UI;
 
 public sealed class MainForm : Form
 {
@@ -47,7 +47,7 @@ public sealed class MainForm : Form
 
     private void BuildInterface()
     {
-        Text = "BNet Switcher";
+        Text = "SessionDeck";
         ClientSize = new Size(700, 430);
         MinimumSize = new Size(660, 420);
         StartPosition = FormStartPosition.CenterScreen;
@@ -429,7 +429,7 @@ public sealed class MainForm : Form
         MessageBox.Show(
             this,
             $"{action}.\n\n{exception.Message}",
-            "BNet Switcher",
+            "SessionDeck",
             MessageBoxButtons.OK,
             MessageBoxIcon.Error);
     }

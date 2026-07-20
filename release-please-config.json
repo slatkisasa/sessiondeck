@@ -3,7 +3,7 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "package-name": "BNetSwitcher",
+      "package-name": "SessionDeck",
       "changelog-path": "CHANGELOG.md",
       "include-component-in-tag": false
     }

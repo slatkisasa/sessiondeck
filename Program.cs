@@ -1,10 +1,10 @@
 // Copyright (C) 2026 slatkisasa
 // SPDX-License-Identifier: AGPL-3.0-only
 
-using BNetSwitcher.Services;
-using BNetSwitcher.UI;
+using SessionDeck.Services;
+using SessionDeck.UI;
 
-namespace BNetSwitcher;
+namespace SessionDeck;
 
 internal static class Program
 {
@@ -22,6 +22,7 @@ internal static class Program
         try
         {
             var paths = AppPaths.CreateDefault();
+            paths.ImportLegacyData();
             var accountStore = new AccountStore(paths.AccountsFile);
             var battleNet = new BattleNetService(paths);
             Application.Run(new MainForm(accountStore, battleNet));
@@ -29,8 +30,8 @@ internal static class Program
         catch (Exception exception)
         {
             MessageBox.Show(
-                $"BNet Switcher could not start.\n\n{exception.Message}",
-                "BNet Switcher",
+                $"SessionDeck could not start.\n\n{exception.Message}",
+                "SessionDeck",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }

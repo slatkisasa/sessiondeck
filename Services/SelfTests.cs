@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 using System.Text.Json.Nodes;
-using BNetSwitcher.Models;
-using BNetSwitcher.UI;
+using SessionDeck.Models;
+using SessionDeck.UI;
 
-namespace BNetSwitcher.Services;
+namespace SessionDeck.Services;
 
 internal static class SelfTests
 {
     public static int Run()
     {
-        var directory = Directory.CreateTempSubdirectory("BNetSwitcherTests-");
+        var directory = Directory.CreateTempSubdirectory("SessionDeckTests-");
         try
         {
             TestAccountStore(directory.FullName);
+            TestLegacyDataImport(directory.FullName);
             TestConfigSwitching(directory.FullName);
             TestResponsiveLayout(directory.FullName);
             Console.WriteLine("All self-tests passed.");
@@ -45,6 +46,35 @@ internal static class SelfTests
         Require(actual.Id == expected.Id, "Account ID did not round-trip.");
         Require(actual.DisplayName == expected.DisplayName, "Display name did not round-trip.");
         Require(actual.AccountIdentifier == expected.AccountIdentifier, "Account identifier did not round-trip.");
+    }
+
+    private static void TestLegacyDataImport(string directory)
+    {
+        var legacyDirectory = Path.Combine(directory, "legacy-data");
+        var dataDirectory = Path.Combine(directory, "sessiondeck-data");
+        var legacyBackups = Path.Combine(legacyDirectory, "Backups");
+        Directory.CreateDirectory(legacyBackups);
+        File.WriteAllText(Path.Combine(legacyDirectory, "accounts.json"), "legacy accounts");
+        File.WriteAllText(Path.Combine(legacyBackups, "backup.json"), "legacy backup");
+
+        var paths = new AppPaths(
+            dataDirectory,
+            Path.Combine(dataDirectory, "accounts.json"),
+            Path.Combine(dataDirectory, "Backups"),
+            Path.Combine(directory, "Battle.net.config"),
+            Path.Combine(directory, "Battle.net Launcher.exe"),
+            legacyDirectory);
+        paths.ImportLegacyData();
+
+        Require(File.ReadAllText(paths.AccountsFile) == "legacy accounts", "Legacy accounts were not imported.");
+        var importedBackup = Path.Combine(paths.BackupDirectory, "backup.json");
+        Require(File.ReadAllText(importedBackup) == "legacy backup", "Legacy backups were not imported.");
+
+        File.WriteAllText(Path.Combine(legacyDirectory, "accounts.json"), "changed legacy accounts");
+        File.WriteAllText(Path.Combine(legacyBackups, "backup.json"), "changed legacy backup");
+        paths.ImportLegacyData();
+        Require(File.ReadAllText(paths.AccountsFile) == "legacy accounts", "Current accounts were overwritten.");
+        Require(File.ReadAllText(importedBackup) == "legacy backup", "Current backups were overwritten.");
     }
 
     private static void TestConfigSwitching(string directory)

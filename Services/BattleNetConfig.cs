@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace BNetSwitcher.Services;
+namespace SessionDeck.Services;
 
 public sealed class BattleNetConfig
 {

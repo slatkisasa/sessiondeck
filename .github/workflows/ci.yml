@@ -41,11 +41,11 @@ jobs:
           }
 
       - name: Restore
-        run: dotnet restore BNetSwitcher.csproj
+        run: dotnet restore SessionDeck.csproj
 
       - name: Build
-        run: dotnet build BNetSwitcher.csproj --configuration Release --no-restore
+        run: dotnet build SessionDeck.csproj --configuration Release --no-restore
 
       - name: Run self-tests
-        run: dotnet run --project BNetSwitcher.csproj --configuration Release --no-build -- --self-test
+        run: dotnet run --project SessionDeck.csproj --configuration Release --no-build -- --self-test
 

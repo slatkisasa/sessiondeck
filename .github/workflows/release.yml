@@ -54,7 +54,7 @@ jobs:
         shell: pwsh
         run: |
           dotnet run `
-            --project BNetSwitcher.csproj `
+            --project SessionDeck.csproj `
             --configuration Release `
             -- `
             --self-test
@@ -62,7 +62,7 @@ jobs:
       - name: Publish portable executable
         shell: pwsh
         run: |
-          dotnet publish BNetSwitcher.csproj `
+          dotnet publish SessionDeck.csproj `
             --configuration Release `
             --runtime win-x64 `
             --self-contained true `
@@ -75,9 +75,9 @@ jobs:
         env:
           RELEASE_TAG: ${{ needs.release_please.outputs.tag_name }}
         run: |
-          $assetName = "BNetSwitcher-$env:RELEASE_TAG-win-x64.exe"
+          $assetName = "SessionDeck.exe"
           New-Item -ItemType Directory -Path release -Force | Out-Null
-          Copy-Item -LiteralPath publish\BNetSwitcher.exe -Destination "release\$assetName"
+          Copy-Item -LiteralPath publish\SessionDeck.exe -Destination "release\$assetName"
 
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath "release\$assetName").Hash.ToLowerInvariant()
           "$hash  $assetName" | Set-Content -LiteralPath release\checksums-sha256.txt -Encoding utf8NoBOM
