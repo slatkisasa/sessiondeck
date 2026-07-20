@@ -88,7 +88,7 @@ public sealed class BattleNetConfig
             $"Battle.net.config.{DateTime.Now:yyyyMMdd-HHmmss-fff}.backup");
         File.Copy(_configPath, backupPath, false);
 
-        var temporaryFile = _configPath + ".bnetswitcher.tmp";
+        var temporaryFile = _configPath + ".sessiondeck.tmp";
         var json = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(temporaryFile, json, new UTF8Encoding(false));
         File.Move(temporaryFile, _configPath, true);
