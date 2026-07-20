@@ -8,6 +8,10 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>BNetSwitcher</AssemblyName>
     <RootNamespace>BNetSwitcher</RootNamespace>
+    <Authors>slatkisasa</Authors>
+    <Copyright>Copyright © 2026 slatkisasa</Copyright>
+    <PackageLicenseExpression>AGPL-3.0-only</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/slatkisasa/battlenet-switcher</RepositoryUrl>
     <Version>0.1.0</Version>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>

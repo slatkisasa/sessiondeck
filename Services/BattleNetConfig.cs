@@ -1,3 +1,6 @@
+// Copyright (C) 2026 slatkisasa
+// SPDX-License-Identifier: AGPL-3.0-only
+
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;

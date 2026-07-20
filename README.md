@@ -51,3 +51,9 @@ Changes are developed on short-lived branches such as `feat/tray-menu`, `fix/win
 Pull request titles use Conventional Commit format. Release Please uses those titles to maintain `CHANGELOG.md`, choose the next semantic version, and open a release pull request. Merging that release pull request creates a GitHub Release containing the self-contained Windows x64 executable and its SHA-256 checksum.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch, pull request, and release conventions.
+
+## License
+
+Copyright © 2026 [slatkisasa](https://github.com/slatkisasa).
+
+BNet Switcher is licensed under the [GNU Affero General Public License v3.0](LICENSE.md). You may use, modify, and distribute it, including commercially, provided you follow the license. In particular, copyright and license notices must remain intact, and covered modifications must make their corresponding source available under the same license.

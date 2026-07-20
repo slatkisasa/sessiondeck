@@ -1,3 +1,6 @@
+// Copyright (C) 2026 slatkisasa
+// SPDX-License-Identifier: AGPL-3.0-only
+
 namespace BNetSwitcher.UI;
 
 public sealed class NameDialog : Form
