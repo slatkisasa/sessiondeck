@@ -1,0 +1,15 @@
+.dotnet-sdk/
+.dotnet-cli-home/
+.nuget-packages/
+bin/
+obj/
+dist/
+*.user
+*.suo
+.vs/
+.idea/
+
+# The application stores personal account metadata outside the repository,
+# under %LOCALAPPDATA%\SessionDeck.
+accounts.json
+Backups/
