@@ -13,3 +13,15 @@ dist/
 # under %LOCALAPPDATA%\SessionDeck.
 accounts.json
 Backups/
+
+# Private launcher files and metadata recovery copies, wherever copied.
+accounts.json.*
+Battle.net.config
+Battle.net.config.*
+.env
+.env.*
+*.pem
+*.key
+id_rsa
+id_ed25519
+__pycache__/

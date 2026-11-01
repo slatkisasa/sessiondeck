@@ -33,3 +33,36 @@ Prefer **Squash and merge** so each pull request becomes one clear changelog ent
 4. GitHub Actions creates the tag and GitHub Release, builds the Windows x64 executable, and attaches it with a SHA-256 checksum.
 
 Do not manually edit the generated release section in `CHANGELOG.md`; make release-note corrections through the release pull request.
+
+## Secret and privacy checks
+
+Install [Gitleaks](https://github.com/gitleaks/gitleaks#installing) 8.30.1 or newer,
+Python 3, and [pre-commit](https://pre-commit.com/#install). On macOS:
+
+```sh
+brew install gitleaks pre-commit
+pre-commit install
+pre-commit run --all-files
+```
+
+On Windows, install Gitleaks from its official releases, add it to PATH, then run
+`py -m pip install pre-commit` and `py -m pre_commit install` from this checkout.
+Each clone needs its own hook installation. The hook scans staged content and
+blocks commits when a scanner fails or Gitleaks is missing.
+
+PRs run Secret scan and Privacy scan, including documentation-only changes.
+Gitleaks detects credentials and private keys. The privacy check scans Git history
+in CI and the index locally for email addresses, personal filesystem paths, and
+account/configuration files. Examples must use `example.invalid` (or the reserved
+example.com/org/net domains); GitHub noreply addresses are allowed. Findings do
+not print matching values. To run the history checks locally:
+
+```sh
+gitleaks git --redact --no-banner
+python3 scripts/check_privacy.py --history
+```
+
+These checks do not recognize arbitrary private IDs or personal data in images.
+Review screenshots manually. Ignore rules are a convenience, not a security
+boundary. GitHub push protection blocks supported credentials before upload;
+PR checks run after upload. If a real credential leaks, revoke it immediately.

@@ -1,0 +1,15 @@
+repos:
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: Scan staged changes for secrets
+        entry: gitleaks git --pre-commit --staged --redact --no-banner
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: privacy
+        name: Scan staged files for private data
+        entry: python scripts/check_privacy.py
+        language: python
+        pass_filenames: false
+        always_run: true
