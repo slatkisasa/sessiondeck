@@ -1,135 +1,83 @@
 # SessionDeck
 
-SessionDeck is a portable Windows 11 x64 app for switching between Battle.net accounts that Battle.net has already kept signed in. The download is one self-contained `SessionDeck.exe`; there is no installer and no separate .NET runtime to install.
+Switch between Battle.net accounts without signing in each time. SessionDeck uses sessions that the Battle.net launcher has already kept signed in.
 
-> **Work in progress:** SessionDeck is still under development. Features and saved-data formats may change. Keep access to your account recovery methods and report any problems you find.
+**Windows 11 x64 · Portable · No installer or separate .NET runtime needed**
+
+> Work in progress: features and saved-data formats may change. Keep access to your account recovery methods.
 
 ![SessionDeck account list](docs/images/sessiondeck.png)
 
-SessionDeck is an independent project and is not affiliated with or endorsed by Blizzard Entertainment.
-
-## Contents
-
-- [How to use](#how-to-use)
-- [Download](#download)
-- [What SessionDeck does](#what-sessiondeck-does)
-- [Data and privacy](#data-and-privacy)
-- [Troubleshooting](#troubleshooting)
-- [Build from source](#build-from-source)
-- [Development and releases](#development-and-releases)
-- [Planned features](TODO.md)
-- [License](#license)
-
-## How to use
-
-### Save your first account
-
-1. Open Battle.net and sign in to the account you want to save.
-2. Enable **Stay logged in** in Battle.net.
-3. Open `SessionDeck.exe`.
-4. Click **Save current**.
-5. Enter a name that will help you recognize the account, then click **Save**.
-
-### Add another account
-
-1. In SessionDeck, click **Add account...**.
-2. Confirm that Battle.net may close and reopen.
-3. Sign in to the other account and enable **Stay logged in**.
-4. Return to SessionDeck and click **Save current**.
-5. Give the account a name and save it.
-
-Repeat these steps for each account you want to add.
-
-### Switch accounts
-
-Select an account and click **Switch**, or double-click the account. SessionDeck closes Battle.net, puts that account first in Battle.net's saved account list, and starts Battle.net again.
-
-Use **Rename** to change the name shown in SessionDeck. Use **Remove** to remove an entry from SessionDeck; this does not delete the Battle.net account.
-
 ## Download
 
-Download [`SessionDeck.exe`](https://github.com/slatkisasa/sessiondeck/releases/latest/download/SessionDeck.exe) from the [latest GitHub release](https://github.com/slatkisasa/sessiondeck/releases/latest). The app currently supports Windows 11 x64.
+Download [SessionDeck.exe](https://github.com/slatkisasa/sessiondeck/releases/latest/download/SessionDeck.exe) from the [latest release](https://github.com/slatkisasa/sessiondeck/releases/latest) and open it. No administrator access is needed.
 
-The release is self-contained and includes the .NET Desktop Runtime and Windows Forms libraries. This is why the file is larger than the app's own code. You do not need administrator access, an installer, or a separate .NET download.
+The app is not code-signed, so Windows may show a SmartScreen warning. Download it only from this repository.
 
-SessionDeck is not currently code-signed, so Windows may show a SmartScreen warning. Only download it from this repository. You can also download [`checksums-sha256.txt`](https://github.com/slatkisasa/sessiondeck/releases/latest/download/checksums-sha256.txt) and compare the published checksum in PowerShell:
+<details>
+<summary>Verify your download</summary>
+
+Download [checksums-sha256.txt](https://github.com/slatkisasa/sessiondeck/releases/latest/download/checksums-sha256.txt) into the same folder, then run these commands in PowerShell. The SHA-256 values should match.
 
 ```powershell
 Get-FileHash .\SessionDeck.exe -Algorithm SHA256
 Get-Content .\checksums-sha256.txt
 ```
 
-The two SHA-256 values should match.
+The executable includes the .NET Desktop Runtime, which accounts for much of its size.
 
-## What SessionDeck does
+</details>
 
-Battle.net keeps authenticated sessions itself. SessionDeck does **not** save passwords, authentication tokens, cookies, browser data, or a full copy of the launcher profile.
+## Use it
 
-SessionDeck reads account identifiers that Battle.net has already written to `%APPDATA%\Battle.net\Battle.net.config`. When you switch accounts, it safely moves the selected identifier to the front of `Client.SavedAccountNames`, then restarts Battle.net. Other Battle.net settings are kept unchanged.
+### Save accounts
 
-Before changing the Battle.net configuration, SessionDeck creates a backup in `%LOCALAPPDATA%\SessionDeck\Backups`.
+1. Sign in to Battle.net with **Stay logged in** enabled.
+2. Open SessionDeck, click **Save current**, and give the account a recognizable name.
+3. To add another account, click **Add account...** and confirm that Battle.net may close and reopen.
+4. Sign in to the other account with **Stay logged in** enabled, then return to SessionDeck and click **Save current**.
 
-## Data and privacy
+Repeat steps 3–4 for each additional account.
 
-SessionDeck stores only the information needed to show and select your saved accounts:
+### Switch accounts
 
-- Account names and Battle.net account identifiers: `%LOCALAPPDATA%\SessionDeck\accounts.json`
-- Battle.net configuration backups: `%LOCALAPPDATA%\SessionDeck\Backups`
+Select an account and click **Switch**, or double-click it. SessionDeck closes Battle.net, selects the saved account in its configuration, and restarts the launcher.
 
-SessionDeck does not collect passwords, make network calls, send telemetry, or use auto-fill. It runs as your current Windows user and does not request administrator access.
+**Rename** changes the name shown in SessionDeck. **Remove** removes the SessionDeck entry; it does not delete your Battle.net account.
 
-The account identifier may be an email address. Anyone who can read your Windows user files may be able to see it in `accounts.json`, so protect your Windows account and do not share that file publicly.
+## Your data
+
+Battle.net manages the signed-in sessions. SessionDeck does not collect passwords, authentication tokens, cookies, or browser profiles. It makes no network calls and sends no telemetry.
+
+SessionDeck reads account identifiers from `%APPDATA%\Battle.net\Battle.net.config`. When switching, it moves the chosen identifier to the front of `Client.SavedAccountNames`, preserving other settings and backing up the configuration first.
+
+Its local files are stored under `%LOCALAPPDATA%\SessionDeck`:
+
+- `accounts.json` — saved names and account identifiers, which may be email addresses.
+- `Backups` — Battle.net configuration backups.
+
+These files can contain private information. Do not share them publicly, and protect access to your Windows account.
 
 ## Troubleshooting
 
-### An account opens at the sign-in screen
+| Problem | What to try |
+| --- | --- |
+| An account opens at the sign-in screen | Its session may have expired. Sign in with **Stay logged in** enabled, then use **Save current** again. |
+| **Save current** cannot find an account | Finish signing in to Battle.net, close the launcher, reopen SessionDeck, and try again. |
+| Buttons are unavailable | Make sure Battle.net is installed and has been opened at least once. |
 
-Battle.net may have expired its saved session. Sign in normally, enable **Stay logged in**, and use **Save current** again.
+To uninstall, delete `SessionDeck.exe`. To also remove its saved names and backups, delete `%LOCALAPPDATA%\SessionDeck`. This does not uninstall Battle.net or delete a Battle.net account.
 
-### Save current cannot find an account
+[Report a problem](https://github.com/slatkisasa/sessiondeck/issues) with a description of what happened. Do not attach private configuration files, account data, or unedited screenshots containing personal information.
 
-Finish signing in to Battle.net first. Close Battle.net, reopen SessionDeck, and try **Save current** again.
+## Build and contribute
 
-### The buttons are unavailable
+With the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) installed, run `.\build.ps1` in PowerShell on Windows. The portable executable is written to `dist\SessionDeck.exe`.
 
-SessionDeck needs to find both the Battle.net configuration and launcher. Make sure Battle.net is installed and has been opened at least once.
-
-### I want to remove SessionDeck
-
-Delete `SessionDeck.exe`. If you also want to remove its saved names and backups, delete `%LOCALAPPDATA%\SessionDeck`. This does not uninstall Battle.net or delete a Battle.net account.
-
-If you find a problem, open a [GitHub issue](https://github.com/slatkisasa/sessiondeck/issues) and describe what happened. Do not include passwords, authentication data, or an unedited copy of your Battle.net configuration.
-
-## Build from source
-
-Building from source requires the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0). People using the release executable do not need the SDK or runtime.
-
-From PowerShell, run:
-
-```powershell
-.\build.ps1
-```
-
-The self-contained Windows x64 executable is written to `dist\SessionDeck.exe`.
-
-Run the built-in non-destructive tests with:
-
-```powershell
-.\.dotnet-sdk\dotnet.exe run --project .\SessionDeck.csproj -- --self-test
-```
-
-The tests use temporary files and do not touch the live Battle.net configuration.
-
-## Development and releases
-
-Changes are developed on short-lived branches such as `feat/tray-menu`, `fix/window-resize`, or `hotfix/session-restore`, then merged into `main` through pull requests.
-
-Pull request titles use Conventional Commit format. Release Please uses those titles to update `CHANGELOG.md`, choose the next semantic version, and open a release pull request. Merging the release pull request creates a GitHub Release with the changelog, `SessionDeck.exe`, and `checksums-sha256.txt`.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full branch, pull request, and release process. Planned improvements are listed in [TODO.md](TODO.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for verification commands and the pull request process, or [TODO.md](TODO.md) for planned improvements.
 
 ## License
 
-Copyright © 2026 [slatkisasa](https://github.com/slatkisasa).
+Copyright © 2026 [slatkisasa](https://github.com/slatkisasa). Licensed under [GNU AGPLv3](LICENSE.md). Covered modifications must retain the license notices and make their corresponding source available under the same license.
 
-SessionDeck is licensed under the [GNU Affero General Public License v3.0](LICENSE.md). You may use, modify, and distribute it, including commercially, provided you follow the license. Copyright and license notices must remain intact, and covered modifications must make their corresponding source available under the same license.
+SessionDeck is an independent project, not affiliated with or endorsed by Blizzard Entertainment.

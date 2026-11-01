@@ -2,6 +2,27 @@
 
 Development uses short-lived branches and pull requests into `main`.
 
+## Build and verify
+
+Use the .NET 8 SDK on Windows. Before submitting application changes, run:
+
+```powershell
+dotnet restore SessionDeck.csproj
+dotnet build SessionDeck.csproj --configuration Release --no-restore
+dotnet run --project SessionDeck.csproj --configuration Release --no-build -- --self-test
+```
+
+If using the repository-local SDK, replace `dotnet` with `.\.dotnet-sdk\dotnet.exe`.
+The self-tests use temporary files and do not touch live Battle.net or SessionDeck data.
+Publish the portable executable with `.\build.ps1`; output goes to ignored `dist\`.
+
+PR title validation runs for every PR, including title edits and documentation-only
+changes. Workflow linting checks all GitHub Actions workflows with actionlint 1.7.12.
+To run it locally after installing that version, use `actionlint` from the repository root.
+Documentation-only PRs skip the Windows build; application changes still require
+restore, a Release build, and self-tests. UI changes also require manual Windows
+checks for resizing and display scaling.
+
 ## Branch names
 
 - `feat/<short-name>` for features
