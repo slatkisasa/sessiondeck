@@ -1,6 +1,7 @@
 // Copyright (C) 2026 slatkisasa
 // SPDX-License-Identifier: AGPL-3.0-only
 
+using System.Security.Principal;
 using SessionDeck.Services;
 using SessionDeck.UI;
 
@@ -21,6 +22,16 @@ internal static class Program
 
         try
         {
+            var userId = WindowsIdentity.GetCurrent().User?.Value
+                ?? throw new InvalidOperationException("The current Windows user could not be identified.");
+            using var instance = SingleInstance.TryAcquire(@"Global\SessionDeck.Application." + userId);
+            if (instance is null)
+            {
+                MessageBox.Show("SessionDeck is already running.", "SessionDeck",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
             var paths = AppPaths.CreateDefault();
             var accountStore = new AccountStore(paths.AccountsFile);
             var battleNet = new BattleNetService(paths);

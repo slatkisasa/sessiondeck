@@ -193,27 +193,33 @@ public sealed class MainForm : Form
 
     private void LoadAccounts()
     {
-        _accounts = _accountStore.Load().ToList();
-        var changed = false;
-        foreach (var remembered in _battleNet.GetRememberedAccounts())
+        try
         {
-            if (_accounts.Any(account =>
-                    account.AccountIdentifier.Equals(remembered, StringComparison.OrdinalIgnoreCase)))
+            _accounts = _accountStore.LoadOrImport(() => _battleNet.GetRememberedAccounts()
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(identifier => new AccountRecord
+                {
+                    AccountIdentifier = identifier,
+                    DisplayName = SuggestName(identifier)
+                }));
+        }
+        catch (InvalidDataException) when (_accountStore.Exists)
+        {
+            var answer = MessageBox.Show(this,
+                "SessionDeck's account file is damaged or contains invalid records. " +
+                "Preserve a copy and start with an empty account list? " +
+                "You can save your accounts again using Save current. Choose Cancel to leave the file unchanged.",
+                "Recover saved accounts", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
+            if (answer != DialogResult.OK)
             {
-                continue;
+                throw new InvalidDataException("Saved accounts could not be loaded. The original file was left unchanged.");
             }
 
-            _accounts.Add(new AccountRecord
-            {
-                AccountIdentifier = remembered,
-                DisplayName = SuggestName(remembered)
-            });
-            changed = true;
-        }
-
-        if (changed)
-        {
-            _accountStore.Save(_accounts);
+            var preserved = _accountStore.PreserveForRecovery();
+            _accountStore.Save([]);
+            _accounts = [];
+            MessageBox.Show(this, $"The original account file was preserved at:\n{preserved}",
+                "Saved accounts preserved", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         RefreshGrid();
@@ -291,16 +297,19 @@ public sealed class MainForm : Form
                 return;
             }
 
-            if (existing is null)
+            var id = existing?.Id ?? Guid.NewGuid();
+            _accounts = _accountStore.Update(_accounts, accounts =>
             {
-                existing = new AccountRecord { AccountIdentifier = identifier };
-                _accounts.Add(existing);
-            }
-
-            existing.DisplayName = dialog.DisplayName;
-            _accountStore.Save(_accounts);
-            RefreshGrid(existing.Id);
-            _status.Text = $"Captured {existing.DisplayName}.";
+                var updated = accounts.FirstOrDefault(account => account.Id == id);
+                if (updated is null)
+                {
+                    updated = new AccountRecord { Id = id, AccountIdentifier = identifier };
+                    accounts.Add(updated);
+                }
+                updated.DisplayName = dialog.DisplayName;
+            });
+            RefreshGrid(id);
+            _status.Text = $"Captured {dialog.DisplayName}.";
         }
         catch (Exception exception)
         {
@@ -339,8 +348,8 @@ public sealed class MainForm : Form
         await RunBusyAsync($"Switching to {account.DisplayName}...", async () =>
         {
             await _battleNet.SwitchAsync(account, _shutdown.Token);
-            account.LastUsedAt = DateTimeOffset.UtcNow;
-            _accountStore.Save(_accounts);
+            _accounts = _accountStore.Update(_accounts, accounts =>
+                accounts.Single(item => item.Id == account.Id).LastUsedAt = DateTimeOffset.UtcNow);
             RefreshGrid(account.Id);
             _status.Text = $"Battle.net started as {account.DisplayName}.";
         });
@@ -360,9 +369,16 @@ public sealed class MainForm : Form
             return;
         }
 
-        account.DisplayName = dialog.DisplayName;
-        _accountStore.Save(_accounts);
-        RefreshGrid(account.Id);
+        try
+        {
+            _accounts = _accountStore.Update(_accounts, accounts =>
+                accounts.Single(item => item.Id == account.Id).DisplayName = dialog.DisplayName);
+            RefreshGrid(account.Id);
+        }
+        catch (Exception exception)
+        {
+            ShowError("Could not rename the account", exception);
+        }
     }
 
     private void RemoveSelected()
@@ -384,9 +400,16 @@ public sealed class MainForm : Form
             return;
         }
 
-        _accounts.Remove(account);
-        _accountStore.Save(_accounts);
-        RefreshGrid();
+        try
+        {
+            _accounts = _accountStore.Update(_accounts, accounts =>
+                accounts.RemoveAll(item => item.Id == account.Id));
+            RefreshGrid();
+        }
+        catch (Exception exception)
+        {
+            ShowError("Could not remove the account", exception);
+        }
     }
 
     private async Task RunBusyAsync(string message, Func<Task> action)

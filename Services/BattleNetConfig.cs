@@ -1,7 +1,6 @@
 // Copyright (C) 2026 slatkisasa
 // SPDX-License-Identifier: AGPL-3.0-only
 
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -85,13 +84,11 @@ public sealed class BattleNetConfig
         Directory.CreateDirectory(_backupDirectory);
         var backupPath = Path.Combine(
             _backupDirectory,
-            $"Battle.net.config.{DateTime.Now:yyyyMMdd-HHmmss-fff}.backup");
+            $"Battle.net.config.{DateTime.Now:yyyyMMdd-HHmmss-fff}.{Guid.NewGuid():N}.backup");
         File.Copy(_configPath, backupPath, false);
 
-        var temporaryFile = _configPath + ".sessiondeck.tmp";
         var json = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(temporaryFile, json, new UTF8Encoding(false));
-        File.Move(temporaryFile, _configPath, true);
+        AtomicFile.WriteAllText(_configPath, json);
         PruneBackups();
         return backupPath;
     }

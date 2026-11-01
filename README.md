@@ -44,7 +44,9 @@ Repeat these steps for each account you want to add.
 
 Select an account and click **Switch**, or double-click the account. SessionDeck closes Battle.net, puts that account first in Battle.net's saved account list, and starts Battle.net again.
 
-Use **Rename** to change the name shown in SessionDeck. Use **Remove** to remove an entry from SessionDeck; this does not delete the Battle.net account.
+Use **Rename** to change the name shown in SessionDeck. Use **Remove** to remove an entry from SessionDeck; this does not delete the Battle.net account. Remembered accounts are imported automatically only when SessionDeck first creates its account file. Removed entries stay removed after restarting; use **Save current** to add one again.
+
+Only one SessionDeck instance can run for each Windows user.
 
 ## Download
 
@@ -93,6 +95,14 @@ Finish signing in to Battle.net first. Close Battle.net, reopen SessionDeck, and
 ### The buttons are unavailable
 
 SessionDeck needs to find both the Battle.net configuration and launcher. Make sure Battle.net is installed and has been opened at least once.
+
+### Saved account data cannot be loaded
+
+If the account file is damaged or contains invalid records, SessionDeck offers to preserve a copy and start with an empty list. Choose **Cancel** to leave the original file unchanged. Recovery copies are stored beside `accounts.json` with a `.damaged-` suffix; they contain account identifiers, so keep them private. Use **Save current** to add accounts again after recovery.
+
+### Battle.net did not close
+
+SessionDeck cancels switching if Battle.net remains running after the shutdown timeout. Close Battle.net manually and retry. Its configuration is left unchanged when shutdown fails.
 
 ### I want to remove SessionDeck
 

@@ -14,6 +14,7 @@ internal static class SelfTests
         var directory = Directory.CreateTempSubdirectory("SessionDeckTests-");
         try
         {
+            SafetyTests.Run(directory.FullName);
             TestAccountStore(directory.FullName);
             TestConfigSwitching(directory.FullName);
             TestResponsiveLayout(directory.FullName);
