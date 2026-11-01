@@ -227,3 +227,41 @@ fn recovery_rejects_changed_data_and_io_errors_are_not_damage() {
             .is_none()
     );
 }
+
+#[test]
+fn new_signin_without_any_remembered_accounts() {
+    let (_dir, paths) = fixture();
+    let original = br#"{"Client":{"Other":true},"Unknown":42}"#;
+    fs::write(&paths.config, original).unwrap();
+    let backup = paths.update_config(None, || Ok(())).unwrap();
+    assert_eq!(fs::read(backup).unwrap(), original);
+    assert!(paths.remembered().unwrap().is_empty());
+    let after: serde_json::Value =
+        serde_json::from_slice(&fs::read(&paths.config).unwrap()).unwrap();
+    assert_eq!(after["Client"]["SavedAccountNames"], "");
+    assert_eq!(after["Client"]["Other"], true);
+}
+
+#[cfg(windows)]
+#[test]
+fn external_file_lock_preserves_original_and_retry_succeeds() {
+    use std::os::windows::fs::OpenOptionsExt;
+    let (_dir, paths) = fixture();
+    let original = fs::read(&paths.config).unwrap();
+    let lock = fs::OpenOptions::new()
+        .read(true)
+        .share_mode(windows_sys::Win32::Storage::FileSystem::FILE_SHARE_READ)
+        .open(&paths.config)
+        .unwrap();
+    assert!(paths.update_config(None, || Ok(())).is_err());
+    assert_eq!(fs::read(&paths.config).unwrap(), original);
+    assert_eq!(
+        fs::read_dir(paths.config.parent().unwrap())
+            .unwrap()
+            .count(),
+        2
+    ); // Fixture and metadata directory; no staging file.
+    drop(lock);
+    paths.update_config(None, || Ok(())).unwrap();
+    assert!(paths.remembered().unwrap().is_empty());
+}

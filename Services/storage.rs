@@ -248,16 +248,14 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
     replace(temp, path)
 }
 fn replace(temp: tempfile::NamedTempFile, path: &Path) -> Result<()> {
+    // ReplaceFileW opens the replacement without sharing. Close our handle first,
+    // retaining TempPath ownership so failures still clean up the staging file.
+    let temp = temp.into_temp_path();
     #[cfg(windows)]
     if path.exists() {
         use std::os::windows::ffi::OsStrExt;
         let target: Vec<_> = path.as_os_str().encode_wide().chain(Some(0)).collect();
-        let source: Vec<_> = temp
-            .path()
-            .as_os_str()
-            .encode_wide()
-            .chain(Some(0))
-            .collect();
+        let source: Vec<_> = temp.as_os_str().encode_wide().chain(Some(0)).collect();
         // SAFETY: terminated UTF-16 paths are valid; optional pointers are null.
         let ok = unsafe {
             windows_sys::Win32::Storage::FileSystem::ReplaceFileW(

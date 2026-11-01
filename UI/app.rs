@@ -60,6 +60,88 @@ fn secondary_button(text: &str) -> egui::Button<'_> {
         .min_size(egui::vec2(0., 36.))
 }
 
+fn account_row(ui: &mut egui::Ui, account: &Account, selected: bool) -> egui::Response {
+    let last = account
+        .last_used_at
+        .map(|t| {
+            t.with_timezone(&chrono::Local)
+                .format("%b %d, %H:%M")
+                .to_string()
+        })
+        .unwrap_or_else(|| "Not opened yet".into());
+    // Keep each text line independent: truncating a multiline Button loses every
+    // line after the first newline, even when the card itself has ample space.
+    let response = ui.add_sized(
+        [ui.available_width(), 88.],
+        egui::Button::new("")
+            .selected(selected)
+            .fill(if selected {
+                Color32::from_rgb(49, 37, 53)
+            } else {
+                Color32::from_rgb(30, 30, 37)
+            })
+            .stroke(egui::Stroke::new(
+                1.0_f32,
+                if selected { ACCENT } else { BORDER },
+            ))
+            .corner_radius(8),
+    );
+    response.widget_info(|| {
+        egui::WidgetInfo::selected(
+            egui::WidgetType::SelectableLabel,
+            ui.is_enabled(),
+            selected,
+            format!(
+                "{}, {}, last opened: {}",
+                account.display_name, account.account_identifier, last
+            ),
+        )
+    });
+    let rect = response.rect;
+    let width = (rect.width() - 32.).max(0.);
+    let painter = ui.painter().with_clip_rect(rect.intersect(ui.clip_rect()));
+    for (text, y, size, color, reserved) in [
+        (
+            account.display_name.as_str(),
+            12.,
+            16.,
+            TEXT,
+            if selected { 78. } else { 0. },
+        ),
+        (account.account_identifier.as_str(), 36., 13., MUTED, 0.),
+    ] {
+        let mut job = egui::text::LayoutJob::simple(
+            text.into(),
+            egui::FontId::proportional(size),
+            if ui.is_enabled() { color } else { MUTED },
+            (width - reserved).max(0.),
+        );
+        job.wrap.max_rows = 1;
+        let galley = painter.layout_job(job);
+        painter.galley(rect.min + egui::vec2(16., y), galley, color);
+    }
+    painter.text(
+        rect.min + egui::vec2(16., 61.),
+        egui::Align2::LEFT_TOP,
+        format!("Last opened: {last}"),
+        egui::FontId::proportional(11.),
+        MUTED,
+    );
+    if selected {
+        painter.text(
+            egui::pos2(rect.right() - 16., rect.top() + 15.),
+            egui::Align2::RIGHT_TOP,
+            "Selected",
+            egui::FontId::proportional(11.),
+            ACCENT,
+        );
+    }
+    response.on_hover_text(format!(
+        "{}\n{}\nLast opened: {}",
+        account.display_name, account.account_identifier, last
+    ))
+}
+
 pub fn icon() -> egui::IconData {
     let mut rgba = Vec::with_capacity(64 * 64 * 4);
     for y in 0..64 {
@@ -156,13 +238,17 @@ impl Deck {
             self.selected = self.accounts.first().map(|a| a.id);
         }
     }
-    fn persist(&mut self, accounts: Vec<Account>) {
+    fn persist(&mut self, accounts: Vec<Account>) -> bool {
         match self.paths.save(&accounts) {
             Ok(()) => {
                 self.accounts = accounts;
                 self.sort();
+                true
             }
-            Err(e) => self.status = format!("Could not save accounts: {e}"),
+            Err(e) => {
+                self.status = format!("Could not save accounts: {e}");
+                false
+            }
         }
     }
     fn capture(&mut self) {
@@ -219,8 +305,11 @@ impl Deck {
             self.receiver = None;
             match result {
                 Ok(()) => {
-                    self.status =
-                        "Launcher started. Authentication is managed by Battle.net.".into();
+                    self.status = if self.switching.is_some() {
+                        "Battle.net opened with the selected account preference.".into()
+                    } else {
+                        "Sign in to Battle.net with Stay logged in enabled, then return here and click Save current.".into()
+                    };
                     if let Some(id) = self.switching.take() {
                         let mut accounts = self.accounts.clone();
                         if let Some(a) = accounts.iter_mut().find(|a| a.id == id) {
@@ -250,11 +339,17 @@ impl Deck {
                     if busy {
                         ui.spinner();
                     } else {
-                        ui.label(RichText::new("●").color(if self.storage_ok {
-                            ACCENT
-                        } else {
-                            Color32::from_rgb(240, 160, 140)
-                        }));
+                        let (rect, _) =
+                            ui.allocate_exact_size(egui::vec2(10., 16.), egui::Sense::hover());
+                        ui.painter().circle_filled(
+                            rect.center(),
+                            3.,
+                            if self.storage_ok {
+                                ACCENT
+                            } else {
+                                Color32::from_rgb(240, 160, 140)
+                            },
+                        );
                     }
                     ui.label(RichText::new(&self.status).size(12.).color(MUTED));
                 });
@@ -361,6 +456,7 @@ impl Deck {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui
                             .add_enabled(enabled, secondary_button("+ Add account"))
+                            .on_hover_text("Open Battle.net sign-in, then use Save current to add the account to your deck")
                             .clicked()
                         {
                             self.dialog = Some(Dialog::SignIn);
@@ -402,9 +498,7 @@ impl Deck {
                             ui.add_enabled_ui(enabled, |ui| {
                                 for account in &self.accounts {
                                     let is_selected = Some(account.id) == self.selected;
-                                    let last = account.last_used_at.map(|t| t.with_timezone(&chrono::Local).format("%b %d, %H:%M").to_string()).unwrap_or_else(|| "Not opened yet".into());
-                                    let text = format!("{}{}\n{}   ·   {}", if is_selected { "Selected  /  " } else { "" }, account.display_name, account.account_identifier, last);
-                                    let response = ui.add_sized([ui.available_width(), 76.], egui::Button::new(RichText::new(text).size(14.).color(TEXT)).truncate().fill(if is_selected { Color32::from_rgb(49, 37, 53) } else { Color32::from_rgb(30, 30, 37) }).stroke(egui::Stroke::new(1.0_f32, if is_selected { ACCENT } else { BORDER })).corner_radius(8));
+                                    let response = account_row(ui, account, is_selected);
                                     if response.clicked() { self.selected = Some(account.id); }
                                     ui.add_space(8.);
                                 }
@@ -442,7 +536,14 @@ impl Deck {
         if self.dialog.is_some() {
             let mut accept = false;
             let mut dismiss = false;
-            egui::Window::new("SessionDeck").collapsible(false).resizable(false).show(ctx, |ui| {
+            let title = match self.dialog.as_ref().unwrap() {
+                Dialog::SignIn => "Add another account",
+                Dialog::Capture => "Save current account",
+                Dialog::Rename => "Rename account",
+                Dialog::Remove => "Remove account",
+                Dialog::Recover => "Recover saved accounts",
+            };
+            egui::Window::new(title).collapsible(false).resizable(false).default_width(420.).show(ctx, |ui| {
                 match self.dialog.as_ref().unwrap() {
                     Dialog::Recover => { ui.label("Saved accounts are damaged or contain invalid records.
 Preserve a copy and start with an empty account list?
@@ -450,9 +551,24 @@ Use Save current to add accounts again.
 Cancel leaves the original file unchanged."); },
                     Dialog::Capture | Dialog::Rename => { ui.label("Account label"); ui.text_edit_singleline(&mut self.name); },
                     Dialog::Remove => { ui.label("Remove this label from SessionDeck? The Battle.net session stays intact."); },
-                    Dialog::SignIn => { ui.label("Close Battle.net and reopen its sign-in screen?\nSign in with Stay logged in enabled, then choose Save current."); },
+                    Dialog::SignIn => {
+                        ui.label("SessionDeck will close Battle.net and reopen its sign-in screen.");
+                        ui.add_space(10.);
+                        ui.label(RichText::new("Then follow these steps:").strong());
+                        ui.label("1. In Battle.net, enable Stay logged in and sign in to the account you want to add.");
+                        ui.label("2. Once Battle.net finishes signing in, return to SessionDeck.");
+                        ui.label("3. Click Save current, choose a name, then save the account.");
+                        ui.add_space(8.);
+                        ui.label(RichText::new("Opening the sign-in screen alone does not save an account.").color(MUTED));
+                    },
                 }
-                ui.horizontal(|ui| { accept = ui.add_enabled(!matches!(self.dialog, Some(Dialog::Capture | Dialog::Rename)) || !self.name.trim().is_empty(), egui::Button::new("Continue")).clicked(); dismiss = ui.button("Cancel").clicked(); });
+                ui.horizontal(|ui| { accept = ui.add_enabled(!matches!(self.dialog, Some(Dialog::Capture | Dialog::Rename)) || !self.name.trim().is_empty(), egui::Button::new(match self.dialog.as_ref().unwrap() {
+                    Dialog::SignIn => "Open sign-in screen",
+                    Dialog::Capture => "Save account",
+                    Dialog::Rename => "Save name",
+                    Dialog::Remove => "Remove account",
+                    Dialog::Recover => "Preserve and reset",
+                })).clicked(); dismiss = ui.button("Cancel").clicked(); });
             });
             if accept {
                 match self.dialog.take().unwrap() {
@@ -477,6 +593,16 @@ Cancel leaves the original file unchanged."); },
                         }
                     }
                     mode => {
+                        let message = match &mode {
+                            Dialog::Capture => {
+                                "Account saved. Select it and click Switch account when you want to use it."
+                            }
+                            Dialog::Rename => "Account renamed.",
+                            Dialog::Remove => {
+                                "Account removed from your deck. Its Battle.net session is unchanged."
+                            }
+                            _ => unreachable!(),
+                        };
                         let mut accounts = self.accounts.clone();
                         match mode {
                             Dialog::Capture => {
@@ -501,7 +627,9 @@ Cancel leaves the original file unchanged."); },
                             Dialog::Remove => accounts.retain(|a| Some(a.id) != self.selected),
                             _ => unreachable!(),
                         }
-                        self.persist(accounts);
+                        if self.persist(accounts) {
+                            self.status = message.into();
+                        }
                     }
                 }
             } else if dismiss {
@@ -533,6 +661,49 @@ mod layout_tests {
             assert!(ctx.style().visuals.dark_mode);
             assert_eq!(ctx.style().visuals.panel_fill, BACKGROUND);
         });
+    }
+
+    #[test]
+    fn account_card_shows_short_name_identifier_and_last_opened_separately() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            data: dir.path().join("metadata"),
+            config: dir.path().join("config.json"),
+            launcher: dir.path().join("launcher.exe"),
+        };
+        let mut account = Account::new("synthetic@example.invalid".into());
+        account.display_name = "Main account".into();
+        paths.save(&[account]).unwrap();
+        let ctx = egui::Context::default();
+        configure_theme(&ctx);
+        let mut deck = Deck::load(paths);
+        let output = ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(860., 560.),
+                )),
+                ..Default::default()
+            },
+            |ctx| deck.render(ctx),
+        );
+        let texts: Vec<_> = output
+            .shapes
+            .iter()
+            .filter_map(|shape| {
+                if let egui::Shape::Text(text) = &shape.shape {
+                    Some(text.galley.text())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert!(
+            texts.contains(&"synthetic@example.invalid"),
+            "identifier is missing behind the row truncation"
+        );
+        assert!(texts.contains(&"Main account"));
+        assert!(texts.iter().any(|text| text.starts_with("Last opened:")));
     }
 
     #[test]
