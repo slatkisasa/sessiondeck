@@ -25,3 +25,12 @@ Battle.net.config.*
 id_rsa
 id_ed25519
 __pycache__/
+
+# Rust build artifacts
+target/
+
+# Local OS metadata, symbols, and packaging output
+.DS_Store
+*.pdb
+/publish/
+/release/

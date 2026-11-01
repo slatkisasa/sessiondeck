@@ -1,4 +1,4 @@
-# SessionDeck
+# SessionDeck — WIP rust rebuild
 
 Switch between Battle.net accounts without signing in each time. SessionDeck uses sessions that the Battle.net launcher has already kept signed in.
 

@@ -20,6 +20,8 @@ concurrency:
 
 jobs:
   release_please:
+    # Temporarily skip this WIP branch; checks remain enabled elsewhere.
+    if: github.head_ref != 'feat/rust-rewrite' && github.ref != 'refs/heads/feat/rust-rewrite'
     name: Prepare or create release
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -39,7 +41,7 @@ jobs:
   build-release:
     name: Build and attach Windows release
     needs: release_please
-    if: needs.release_please.outputs.release_created == 'true'
+    if: github.head_ref != 'feat/rust-rewrite' && github.ref != 'refs/heads/feat/rust-rewrite' && (needs.release_please.outputs.release_created == 'true')
     runs-on: windows-latest
     timeout-minutes: 20
 
@@ -49,29 +51,16 @@ jobs:
         with:
           ref: ${{ needs.release_please.outputs.tag_name }}
 
-      - name: Set up .NET 8
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: 8.0.x
+      - name: Set up Rust
+        shell: pwsh
+        run: rustup update stable
 
       - name: Run self-tests
-        shell: pwsh
-        run: |
-          dotnet run `
-            --project SessionDeck.csproj `
-            --configuration Release `
-            -- `
-            --self-test
+        run: cargo test --locked --release
 
       - name: Publish portable executable
         shell: pwsh
-        run: |
-          dotnet publish SessionDeck.csproj `
-            --configuration Release `
-            --runtime win-x64 `
-            --self-contained true `
-            --output publish `
-            -p:Version=${{ needs.release_please.outputs.version }}
+        run: ./build.ps1
 
       - name: Package release files
         id: package
@@ -81,7 +70,7 @@ jobs:
         run: |
           $assetName = "SessionDeck.exe"
           New-Item -ItemType Directory -Path release -Force | Out-Null
-          Copy-Item -LiteralPath publish\SessionDeck.exe -Destination "release\$assetName"
+          Copy-Item -LiteralPath dist\SessionDeck.exe -Destination "release\$assetName"
 
           $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath "release\$assetName").Hash.ToLowerInvariant()
           "$hash  $assetName" | Set-Content -LiteralPath release\checksums-sha256.txt -Encoding utf8NoBOM
