@@ -10,6 +10,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     mpsc,
 };
+use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 const BACKGROUND: Color32 = Color32::from_rgb(18, 18, 23);
@@ -17,6 +18,7 @@ const SURFACE: Color32 = Color32::from_rgb(25, 25, 32);
 const BORDER: Color32 = Color32::from_rgb(47, 47, 58);
 const ACCENT: Color32 = Color32::from_rgb(231, 176, 207);
 const TEXT: Color32 = Color32::from_rgb(237, 233, 242);
+const CURRENT: Color32 = Color32::from_rgb(132, 210, 165);
 const MUTED: Color32 = Color32::from_rgb(153, 151, 168);
 
 fn configure_theme(ctx: &egui::Context) {
@@ -60,7 +62,12 @@ fn secondary_button(text: &str) -> egui::Button<'_> {
         .min_size(egui::vec2(0., 36.))
 }
 
-fn account_row(ui: &mut egui::Ui, account: &Account, selected: bool) -> egui::Response {
+fn account_row(
+    ui: &mut egui::Ui,
+    account: &Account,
+    selected: bool,
+    current: bool,
+) -> egui::Response {
     let last = account
         .last_used_at
         .map(|t| {
@@ -92,8 +99,15 @@ fn account_row(ui: &mut egui::Ui, account: &Account, selected: bool) -> egui::Re
             ui.is_enabled(),
             selected,
             format!(
-                "{}, {}, last opened: {}",
-                account.display_name, account.account_identifier, last
+                "{}, {}, last opened: {}{}",
+                account.display_name,
+                account.account_identifier,
+                last,
+                if current {
+                    ", Current account recorded by Battle.net"
+                } else {
+                    ""
+                }
             ),
         )
     });
@@ -106,7 +120,7 @@ fn account_row(ui: &mut egui::Ui, account: &Account, selected: bool) -> egui::Re
             12.,
             16.,
             TEXT,
-            if selected { 78. } else { 0. },
+            if selected || current { 88. } else { 0. },
         ),
         (account.account_identifier.as_str(), 36., 13., MUTED, 0.),
     ] {
@@ -127,7 +141,20 @@ fn account_row(ui: &mut egui::Ui, account: &Account, selected: bool) -> egui::Re
         egui::FontId::proportional(11.),
         MUTED,
     );
-    if selected {
+    if current {
+        painter.circle_filled(
+            egui::pos2(rect.right() - 70., rect.top() + 21.),
+            3.,
+            CURRENT,
+        );
+        painter.text(
+            egui::pos2(rect.right() - 16., rect.top() + 15.),
+            egui::Align2::RIGHT_TOP,
+            "Current",
+            egui::FontId::proportional(11.),
+            CURRENT,
+        );
+    } else if selected {
         painter.text(
             egui::pos2(rect.right() - 16., rect.top() + 15.),
             egui::Align2::RIGHT_TOP,
@@ -137,8 +164,15 @@ fn account_row(ui: &mut egui::Ui, account: &Account, selected: bool) -> egui::Re
         );
     }
     response.on_hover_text(format!(
-        "{}\n{}\nLast opened: {}",
-        account.display_name, account.account_identifier, last
+        "{}\n{}\nLast opened: {}{}",
+        account.display_name,
+        account.account_identifier,
+        last,
+        if current {
+            "\nCurrent: the last account recorded by Battle.net. Sign-in may still be required."
+        } else {
+            ""
+        }
     ))
 }
 
@@ -169,6 +203,9 @@ pub struct Deck {
     paths: Paths,
     accounts: Vec<Account>,
     selected: Option<Uuid>,
+    current: Option<String>,
+    current_receiver: Option<mpsc::Receiver<anyhow::Result<Option<String>>>>,
+    next_current_refresh: Instant,
     status: String,
     receiver: Option<mpsc::Receiver<anyhow::Result<()>>>,
     switching: Option<Uuid>,
@@ -212,6 +249,9 @@ impl Deck {
             paths,
             accounts,
             selected: None,
+            current: None,
+            current_receiver: None,
+            next_current_refresh: Instant::now(),
             status,
             receiver: None,
             switching: None,
@@ -225,6 +265,47 @@ impl Deck {
         };
         deck.sort();
         deck
+    }
+    fn invalidate_current(&mut self) {
+        self.current = None;
+        // Discard an in-flight read started before a switch, so its stale result
+        // cannot overwrite the new preference after the operation completes.
+        self.current_receiver = None;
+        self.next_current_refresh = Instant::now();
+    }
+    fn refresh_current(&mut self, ctx: &egui::Context) {
+        let result = self
+            .current_receiver
+            .as_ref()
+            .and_then(|rx| match rx.try_recv() {
+                Ok(result) => Some(result),
+                Err(mpsc::TryRecvError::Empty) => None,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    Some(Err(anyhow::anyhow!("Current account read interrupted")))
+                }
+            });
+        if let Some(result) = result {
+            self.current = result.ok().flatten(); // Unknown is preferable to a stale marker.
+            self.current_receiver = None;
+        }
+        if self.receiver.is_none()
+            && self.current_receiver.is_none()
+            && Instant::now() >= self.next_current_refresh
+        {
+            let paths = self.paths.clone();
+            let ctx = ctx.clone();
+            let (tx, rx) = mpsc::channel();
+            self.current_receiver = Some(rx);
+            self.next_current_refresh = Instant::now() + Duration::from_secs(3);
+            std::thread::spawn(move || {
+                let result = paths
+                    .remembered()
+                    .map(|accounts| accounts.into_iter().next());
+                let _ = tx.send(result);
+                ctx.request_repaint();
+            });
+        }
+        ctx.request_repaint_after(Duration::from_secs(3));
     }
     fn sort(&mut self) {
         self.accounts.sort_by(|a, b| {
@@ -270,6 +351,7 @@ impl Deck {
         }
     }
     fn start(&mut self, id: Option<Uuid>, ctx: &egui::Context) {
+        self.invalidate_current();
         let account = id
             .and_then(|id| self.accounts.iter().find(|a| a.id == id))
             .map(|a| a.account_identifier.clone());
@@ -302,6 +384,7 @@ impl Deck {
             ))),
         });
         if let Some(result) = result {
+            self.invalidate_current();
             self.receiver = None;
             match result {
                 Ok(()) => {
@@ -321,6 +404,7 @@ impl Deck {
                 Err(e) => self.status = format!("Operation failed: {e:#}"),
             }
         }
+        self.refresh_current(ctx);
         let busy = self.receiver.is_some();
         let enabled = !busy && self.dialog.is_none() && self.storage_ok;
         let selected = self
@@ -498,7 +582,8 @@ impl Deck {
                             ui.add_enabled_ui(enabled, |ui| {
                                 for account in &self.accounts {
                                     let is_selected = Some(account.id) == self.selected;
-                                    let response = account_row(ui, account, is_selected);
+                                    let is_current = self.current.as_deref().is_some_and(|id| same_identifier(id, &account.account_identifier));
+                                    let response = account_row(ui, account, is_selected, is_current);
                                     if response.clicked() { self.selected = Some(account.id); }
                                     ui.add_space(8.);
                                 }
@@ -704,6 +789,87 @@ mod layout_tests {
         );
         assert!(texts.contains(&"Main account"));
         assert!(texts.iter().any(|text| text.starts_with("Last opened:")));
+    }
+
+    #[test]
+    fn current_marker_tracks_recorded_account_instead_of_row_selection() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            data: dir.path().join("metadata"),
+            config: dir.path().join("config.json"),
+            launcher: dir.path().join("launcher.exe"),
+        };
+        let first = Account::new("first@example.invalid".into());
+        let second = Account::new("second@example.invalid".into());
+        let selected_id = first.id;
+        paths.save(&[first, second]).unwrap();
+        let ctx = egui::Context::default();
+        configure_theme(&ctx);
+        let mut deck = Deck::load(paths);
+        deck.selected = Some(selected_id);
+        for result in [
+            Ok(Some("SECOND@example.invalid".into())),
+            Ok(None),
+            Err(anyhow::anyhow!("unreadable configuration")),
+        ] {
+            let expect_current = matches!(&result, Ok(Some(_)));
+            let (tx, rx) = mpsc::channel();
+            tx.send(result).unwrap();
+            deck.current_receiver = Some(rx);
+            deck.next_current_refresh = Instant::now() + Duration::from_secs(60);
+            let output = ctx.run(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(860., 560.),
+                    )),
+                    ..Default::default()
+                },
+                |ctx| deck.render(ctx),
+            );
+            let mut badge_y = None;
+            let mut second_y = None;
+            for shape in output.shapes {
+                if let egui::Shape::Text(text) = shape.shape {
+                    match text.galley.text() {
+                        "Current" => {
+                            assert!(badge_y.is_none(), "multiple Current markers");
+                            badge_y = Some(text.pos.y);
+                        }
+                        "second" => second_y = Some(text.pos.y),
+                        _ => {}
+                    }
+                }
+            }
+            assert_eq!(deck.selected, Some(selected_id));
+            assert_eq!(badge_y.is_some(), expect_current);
+            if let Some(y) = badge_y {
+                assert!(
+                    (y - second_y.unwrap()).abs() < 10.,
+                    "Current marker appeared on the selected row instead of the recorded account"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn switching_discards_stale_current_account_reads() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            data: dir.path().join("metadata"),
+            config: dir.path().join("config.json"),
+            launcher: dir.path().join("launcher.exe"),
+        };
+        let mut deck = Deck::load(paths);
+        deck.current = Some("previous@example.invalid".into());
+        let (tx, rx) = mpsc::channel();
+        deck.current_receiver = Some(rx);
+        deck.invalidate_current();
+        assert!(deck.current.is_none());
+        assert!(
+            tx.send(Ok(Some("previous@example.invalid".into())))
+                .is_err()
+        );
     }
 
     #[test]
