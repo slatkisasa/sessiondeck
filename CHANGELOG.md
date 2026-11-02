@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.0](https://github.com/slatkisasa/sessiondeck/compare/v1.0.1...v2.0.0) (2026-11-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* release SessionDeck v1.0 in Rust ([#6](https://github.com/slatkisasa/sessiondeck/issues/6))
+
+### Features
+
+* release SessionDeck v1.0 in Rust ([#6](https://github.com/slatkisasa/sessiondeck/issues/6)) ([2731b78](https://github.com/slatkisasa/sessiondeck/commit/2731b78e6e30787be53f966a6934a93b872621d9))
+
+
+### Bug Fixes
+
+* harden release publishing and dependency security ([#8](https://github.com/slatkisasa/sessiondeck/issues/8)) ([0d9826e](https://github.com/slatkisasa/sessiondeck/commit/0d9826e41c6223d6875da91b8dad0eb3a1922d4f))
+
 ## [1.0.1](https://github.com/slatkisasa/sessiondeck/compare/v1.0.0...v1.0.1) (2026-11-02)
 
 
