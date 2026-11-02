@@ -62,7 +62,7 @@ Prefer **Squash and merge** so each pull request becomes one clear changelog ent
 ## Release process
 
 1. Merge conventional pull requests into `main`.
-2. Release Please creates or updates a release pull request containing the version bump and changelog.
+2. Release Please uses its Rust strategy to update `Cargo.toml`, the root package in `Cargo.lock`, and the changelog together. `Cargo.toml` is the application version source.
 3. Merge the release pull request when the accumulated changes are ready to publish.
 4. GitHub Actions creates a draft release and an immutable tag, builds and tests the Windows x64 executable, uploads it with a SHA-256 checksum, and then publishes the release.
 
