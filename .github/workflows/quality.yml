@@ -15,7 +15,7 @@ concurrency:
 jobs:
   title:
     name: Validate pull request title
-    if: github.head_ref != 'feat/rust-rewrite' && github.ref != 'refs/heads/feat/rust-rewrite' && (github.event_name == 'pull_request')
+    if: (github.event_name == 'pull_request')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -28,8 +28,6 @@ jobs:
             }
 
   workflows:
-    # Temporarily skip this WIP branch; checks remain enabled elsewhere.
-    if: github.head_ref != 'feat/rust-rewrite' && github.ref != 'refs/heads/feat/rust-rewrite'
     name: Lint GitHub Actions workflows
     runs-on: ubuntu-latest
     timeout-minutes: 5

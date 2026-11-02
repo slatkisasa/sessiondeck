@@ -12,7 +12,8 @@
           "path": "Cargo.toml",
           "jsonpath": "$.package.version"
         }
-      ]
+      ],
+      "release-as": "1.0.0"
     }
   }
 }

@@ -1,12 +1,12 @@
-# SessionDeck — WIP rust rebuild
+# SessionDeck v1.0
 
 Switch between Battle.net accounts without signing in each time. SessionDeck uses sessions that the Battle.net launcher has already kept signed in.
 
-**Windows 11 x64 · Portable · No installer or separate .NET runtime needed**
+**Windows 11 x64 · Portable · No installer or separate runtime needed**
 
-> Work in progress: features and saved-data formats may change. Keep access to your account recovery methods.
+SessionDeck v1.0 is rebuilt in Rust with an egui interface. It runs as a standalone Windows executable.
 
-![SessionDeck account list](docs/images/sessiondeck.png)
+![SessionDeck v1.0 Rust interface showing the account deck](docs/images/sessiondeck-rust.png)
 
 ## Download
 
@@ -24,7 +24,7 @@ Get-FileHash .\SessionDeck.exe -Algorithm SHA256
 Get-Content .\checksums-sha256.txt
 ```
 
-The executable includes the .NET Desktop Runtime, which accounts for much of its size.
+The Rust executable does not require a separate runtime installation.
 
 </details>
 
@@ -34,14 +34,14 @@ The executable includes the .NET Desktop Runtime, which accounts for much of its
 
 1. Sign in to Battle.net with **Stay logged in** enabled.
 2. Open SessionDeck, click **Save current**, and give the account a recognizable name.
-3. To add another account, click **Add account...** and confirm that Battle.net may close and reopen.
+3. To add another account, click **+ Add account** and confirm that Battle.net may close and reopen.
 4. Sign in to the other account with **Stay logged in** enabled, then return to SessionDeck and click **Save current**.
 
 Repeat steps 3–4 for each additional account.
 
 ### Switch accounts
 
-Select an account and click **Switch**, or double-click it. SessionDeck closes Battle.net, selects the saved account in its configuration, and restarts the launcher.
+Select an account and click **Switch account**. SessionDeck closes Battle.net, selects the saved account in its configuration, and restarts the launcher.
 
 **Rename** changes the name shown in SessionDeck. **Remove** removes the SessionDeck entry; it does not delete your Battle.net account.
 
@@ -72,7 +72,17 @@ To uninstall, delete `SessionDeck.exe`. To also remove its saved names and backu
 
 ## Build and contribute
 
-With the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) installed, run `.\build.ps1` in PowerShell on Windows. The portable executable is written to `dist\SessionDeck.exe`.
+Install Rust stable with the MSVC C++ toolchain and Windows SDK, then run `.\build.ps1` in PowerShell on Windows. The portable executable is written to `dist\SessionDeck.exe`.
+
+To check the source before packaging:
+
+```powershell
+cargo fetch --locked
+cargo fmt --all -- --check
+cargo clippy --locked --all-targets -- -D warnings
+cargo build --locked --release
+cargo test --locked --release
+```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for verification commands and the pull request process, or [TODO.md](TODO.md) for planned improvements.
 

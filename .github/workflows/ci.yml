@@ -14,8 +14,6 @@ concurrency:
 
 jobs:
   changes:
-    # Temporarily skip this WIP branch; checks remain enabled elsewhere.
-    if: github.head_ref != 'feat/rust-rewrite' && github.ref != 'refs/heads/feat/rust-rewrite'
     name: Detect documentation-only changes
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -47,7 +45,7 @@ jobs:
     name: Build and test (Windows x64)
     needs: changes
     # Keep the required check visible; a skipped workflow would leave it pending.
-    if: github.head_ref != 'feat/rust-rewrite' && github.ref != 'refs/heads/feat/rust-rewrite' && (always() && needs.changes.outputs.docs_only != 'true')
+    if: (always() && needs.changes.outputs.docs_only != 'true')
     runs-on: windows-latest
     timeout-minutes: 15
 
