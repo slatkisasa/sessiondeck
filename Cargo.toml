@@ -12,7 +12,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
-eframe = { version = "0.31.1", default-features = false, features = ["accesskit", "default_fonts", "glow", "x11", "wayland"] }
+eframe = { version = "0.32.3", default-features = false, features = ["accesskit", "default_fonts", "glow", "x11", "wayland"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["arbitrary_precision", "preserve_order"] }
 uuid = { version = "1", features = ["v4", "serde"] }

@@ -95,7 +95,12 @@ PRs run Secret scan, Privacy scan, and Rust dependency audit, including document
 changes. Security checks also run on pushes to `main`, manual dispatches, and weekly
 on Mondays. The dependency audit checks `Cargo.lock` against RustSec advisories and
 fails on known vulnerabilities. Investigate findings and update dependencies; do
-not add blanket advisory exclusions. To run it locally:
+not add blanket advisory exclusions. The current lockfile has informational
+unmaintained-crate warnings for `ttf-parser` (egui font rendering) and the
+`zbus_names`/`zvariant`/`zvariant_derive` family (Linux accessibility). RustSec lists
+no patched versions for these maintenance notices. Keep them visible and review
+them during dependency upgrades; they are not vulnerability exclusions. To run
+it locally:
 
 ```sh
 cargo install cargo-audit --version 0.22.2 --locked
