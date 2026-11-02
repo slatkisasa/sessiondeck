@@ -12,6 +12,8 @@ mod storage;
 #[cfg(test)]
 #[path = "../Services/tests.rs"]
 mod tests;
+#[path = "../Services/updates.rs"]
+mod updates;
 
 fn main() {
     if let Err(error) = run() {

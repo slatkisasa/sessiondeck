@@ -47,7 +47,7 @@ Select an account and click **Switch**, or double-click it. SessionDeck closes B
 
 ## Your data
 
-Battle.net manages the signed-in sessions. SessionDeck does not collect passwords, authentication tokens, cookies, or browser profiles. It makes no network calls and sends no telemetry.
+Battle.net manages the signed-in sessions. SessionDeck does not collect passwords, authentication tokens, cookies, or browser profiles. It checks the project’s public GitHub releases once each time it opens and when you click **Check for updates** in Settings. These requests send no account data; GitHub receives your IP address and the app version. SessionDeck sends no telemetry. Updates are downloaded and installed manually from the release page.
 
 SessionDeck reads account identifiers from `%APPDATA%\Battle.net\Battle.net.config`. When switching, it moves the chosen identifier to the front of `Client.SavedAccountNames`, preserving other settings and backing up the configuration first.
 

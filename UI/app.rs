@@ -217,6 +217,9 @@ pub struct Deck {
     launcher_path: String,
     storage_ok: bool,
     damaged: Option<Vec<u8>>,
+    update_receiver: Option<mpsc::Receiver<anyhow::Result<crate::updates::CheckResult>>>,
+    update_result: Option<crate::updates::CheckResult>,
+    update_status: String,
 }
 enum Dialog {
     Capture,
@@ -228,7 +231,9 @@ enum Dialog {
 impl Deck {
     pub fn new(cc: &eframe::CreationContext<'_>, paths: Paths) -> Self {
         configure_theme(&cc.egui_ctx);
-        Self::load(paths)
+        let mut deck = Self::load(paths);
+        deck.check_updates(&cc.egui_ctx);
+        deck
     }
     fn load(paths: Paths) -> Self {
         let loaded = paths.load_or_import();
@@ -262,10 +267,61 @@ impl Deck {
             settings: false,
             storage_ok,
             damaged,
+            update_receiver: None,
+            update_result: None,
+            update_status: String::new(),
         };
         deck.sort();
         deck
     }
+    fn check_updates(&mut self, ctx: &egui::Context) {
+        if self.update_receiver.is_some() {
+            return;
+        }
+        let (tx, rx) = mpsc::channel();
+        self.update_receiver = Some(rx);
+        self.update_status = "Checking for updates…".into();
+        let ctx = ctx.clone();
+        std::thread::spawn(move || {
+            let _ = tx.send(crate::updates::check());
+            ctx.request_repaint();
+        });
+    }
+
+    fn poll_updates(&mut self) {
+        let result = self
+            .update_receiver
+            .as_ref()
+            .and_then(|rx| match rx.try_recv() {
+                Ok(result) => Some(result),
+                Err(mpsc::TryRecvError::Empty) => None,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    Some(Err(anyhow::anyhow!("Update worker stopped")))
+                }
+            });
+        if let Some(result) = result {
+            self.update_receiver = None;
+            match result {
+                Ok(result) => {
+                    self.update_status = match &result {
+                        crate::updates::CheckResult::Available(version) => {
+                            format!("Version {version} is available.")
+                        }
+                        crate::updates::CheckResult::Current => "You’re up to date.".into(),
+                        crate::updates::CheckResult::NoRelease => {
+                            "No published release is available yet.".into()
+                        }
+                    };
+                    self.update_result = Some(result);
+                }
+                Err(_) => {
+                    self.update_status =
+                        "Could not check for updates. Please try again later.".into()
+                }
+            }
+        }
+    }
+
     fn invalidate_current(&mut self) {
         self.current = None;
         // Discard an in-flight read started before a switch, so its stale result
@@ -404,6 +460,7 @@ impl Deck {
                 Err(e) => self.status = format!("Operation failed: {e:#}"),
             }
         }
+        self.poll_updates();
         self.refresh_current(ctx);
         let busy = self.receiver.is_some();
         let enabled = !busy && self.dialog.is_none() && self.storage_ok;
@@ -436,6 +493,14 @@ impl Deck {
                         );
                     }
                     ui.label(RichText::new(&self.status).size(12.).color(MUTED));
+                    if let Some(crate::updates::CheckResult::Available(version)) =
+                        &self.update_result
+                    {
+                        ui.hyperlink_to(
+                            format!("Update available: {version}"),
+                            crate::updates::RELEASE_URL,
+                        );
+                    }
                 });
             });
         egui::TopBottomPanel::bottom("actions")
@@ -592,6 +657,7 @@ impl Deck {
                     }
                 });
             });
+        let mut check_updates = false;
         if self.settings {
             egui::Window::new("Settings")
                 .open(&mut self.settings)
@@ -599,6 +665,25 @@ impl Deck {
                 .resizable(true)
                 .default_width(420.)
                 .show(ctx, |ui| {
+                    ui.label(RichText::new("SessionDeck updates").strong());
+                    ui.label(format!(
+                        "Installed version: {}",
+                        crate::updates::CURRENT_VERSION
+                    ));
+                    ui.label("Checks GitHub once each time SessionDeck opens.");
+                    check_updates = ui
+                        .add_enabled(
+                            self.update_receiver.is_none(),
+                            secondary_button("Check for updates"),
+                        )
+                        .clicked();
+                    if !self.update_status.is_empty() {
+                        ui.label(&self.update_status);
+                    }
+                    if let Some(crate::updates::CheckResult::Available(_)) = &self.update_result {
+                        ui.hyperlink_to("View release and download", crate::updates::RELEASE_URL);
+                    }
+                    ui.separator();
                     ui.label(RichText::new("Battle.net launcher").strong());
                     ui.label(
                         RichText::new("Choose a different installation for this run.").color(MUTED),
@@ -617,6 +702,9 @@ impl Deck {
                         self.status = "Launcher location updated for this run.".into();
                     }
                 });
+        }
+        if check_updates {
+            self.check_updates(ctx);
         }
         if self.dialog.is_some() {
             let mut accept = false;
@@ -733,6 +821,86 @@ impl eframe::App for Deck {
 #[cfg(test)]
 mod layout_tests {
     use super::*;
+
+    #[test]
+    fn update_checks_do_not_overlap_and_failures_preserve_available_release() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut deck = Deck::load(Paths {
+            data: dir.path().join("metadata"),
+            config: dir.path().join("config.json"),
+            launcher: dir.path().join("launcher.exe"),
+        });
+        let ctx = egui::Context::default();
+        let (tx, rx) = mpsc::channel();
+        deck.update_receiver = Some(rx);
+        // This must keep the existing receiver rather than start a network request.
+        deck.check_updates(&ctx);
+        let available = crate::updates::CheckResult::Available(semver::Version::new(1, 0, 0));
+        tx.send(Ok(available)).unwrap();
+        deck.poll_updates();
+        assert!(deck.update_receiver.is_none());
+        assert!(deck.update_status.contains("1.0.0"));
+        let (tx, rx) = mpsc::channel();
+        deck.update_receiver = Some(rx);
+        tx.send(Err(anyhow::anyhow!("offline"))).unwrap();
+        deck.poll_updates();
+        assert!(deck.update_status.contains("Could not check"));
+        assert!(matches!(
+            deck.update_result,
+            Some(crate::updates::CheckResult::Available(_))
+        ));
+        assert!(deck.update_receiver.is_none());
+    }
+
+    #[test]
+    fn update_settings_fit_window_sizes_and_display_scaling() {
+        let dir = tempfile::tempdir().unwrap();
+        for scale in [1.0, 1.5, 2.0] {
+            for size in [
+                egui::vec2(640., 460.),
+                egui::vec2(860., 560.),
+                egui::vec2(1600., 1000.),
+            ] {
+                let ctx = egui::Context::default();
+                configure_theme(&ctx);
+                ctx.set_pixels_per_point(scale);
+                let mut deck = Deck::load(Paths {
+                    data: dir.path().join("metadata"),
+                    config: dir.path().join("config.json"),
+                    launcher: dir.path().join("launcher.exe"),
+                });
+                deck.settings = true;
+                deck.update_status = "Version 1.0.0 is available.".into();
+                deck.update_result = Some(crate::updates::CheckResult::Available(
+                    semver::Version::new(1, 0, 0),
+                ));
+                let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, size);
+                let mut output = None;
+                for _ in 0..3 {
+                    output = Some(ctx.run(
+                        egui::RawInput {
+                            screen_rect: Some(screen),
+                            ..Default::default()
+                        },
+                        |ctx| deck.render(ctx),
+                    ));
+                }
+                let mut found = false;
+                for shape in output.unwrap().shapes {
+                    if let egui::Shape::Text(text) = shape.shape
+                        && text.galley.text() == "Check for updates"
+                    {
+                        found = true;
+                        assert!(screen.contains_rect(egui::Rect::from_min_size(
+                            text.pos,
+                            text.galley.size()
+                        )));
+                    }
+                }
+                assert!(found, "update button missing at {size:?}, scale {scale}");
+            }
+        }
+    }
 
     #[test]
     fn windows_light_theme_does_not_override_dark_palette() {
