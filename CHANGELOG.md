@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/slatkisasa/sessiondeck/compare/v1.0.0...v1.0.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* harden release publishing and dependency security ([#8](https://github.com/slatkisasa/sessiondeck/issues/8)) ([0d9826e](https://github.com/slatkisasa/sessiondeck/commit/0d9826e41c6223d6875da91b8dad0eb3a1922d4f))
+
 ## [1.0.0](https://github.com/slatkisasa/sessiondeck/compare/v0.3.0...v1.0.0) (2026-11-02)
 
 
