@@ -38,7 +38,7 @@ jobs:
     steps:
       - name: Update release pull request or create release
         id: release
-        uses: googleapis/release-please-action@v5
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
@@ -55,7 +55,7 @@ jobs:
       tag_name: ${{ steps.select.outputs.tag_name }}
       sha: ${{ steps.select.outputs.sha }}
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         id: select
         env:
           RECOVERY_TAG: ${{ inputs.release_tag }}
@@ -103,7 +103,7 @@ jobs:
 
     steps:
       - name: Check out immutable release commit
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ needs.select-release.outputs.sha }}
 
