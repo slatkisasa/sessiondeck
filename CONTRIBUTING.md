@@ -64,7 +64,7 @@ Prefer **Squash and merge** so each pull request becomes one clear changelog ent
 1. Merge conventional pull requests into `main`.
 2. Release Please uses its Rust strategy to update `Cargo.toml`, the root package in `Cargo.lock`, and the changelog together. `Cargo.toml` is the application version source.
 3. Merge the release pull request when the accumulated changes are ready to publish.
-4. GitHub Actions creates a draft release and an immutable tag, builds and tests the Windows x64 executable, uploads it with a SHA-256 checksum, and then publishes the release.
+4. Release Please creates a draft release and its tag together (`force-tag-creation`), so it can locate the release boundary before preparing another PR. GitHub Actions builds and tests the Windows x64 executable, uploads it with a SHA-256 checksum, and then publishes the release.
 
 If building or uploading fails, the release stays in draft. Re-run the failed jobs,
 or manually run the **Release** workflow from `main` with `release_tag` set to the

@@ -4,6 +4,7 @@
     ".": {
       "release-type": "rust",
       "draft": true,
+      "force-tag-creation": true,
       "package-name": "SessionDeck",
       "changelog-path": "CHANGELOG.md",
       "include-component-in-tag": false
