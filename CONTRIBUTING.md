@@ -4,24 +4,37 @@ Development uses short-lived branches and pull requests into `main`.
 
 ## Build and verify
 
-Use the .NET 8 SDK on Windows. Before submitting application changes, run:
+Use Rust via rustup on Windows with the MSVC C++ toolchain and Windows SDK.
+`rust-toolchain.toml` pins the compiler and required components for local builds, CI,
+and releases. Update the pinned version deliberately in a pull request. Before submitting changes, run:
 
 ```powershell
-dotnet restore SessionDeck.csproj
-dotnet build SessionDeck.csproj --configuration Release --no-restore
-dotnet run --project SessionDeck.csproj --configuration Release --no-build -- --self-test
+cargo fetch --locked
+cargo fmt --all -- --check
+cargo clippy --locked --all-targets -- -D warnings
+cargo build --locked --release
+cargo test --locked --release
+./build.ps1
 ```
 
-If using the repository-local SDK, replace `dotnet` with `.\.dotnet-sdk\dotnet.exe`.
-The self-tests use temporary files and do not touch live Battle.net or SessionDeck data.
-Publish the portable executable with `.\build.ps1`; output goes to ignored `dist\`.
+Tests inject temporary paths and never touch live Battle.net or SessionDeck data.
+The portable executable goes to ignored `dist/`. Rust's CRT is linked statically.
+SessionDeck is built with Cargo; the legacy .NET project is not maintained or used
+for builds. UI code lives in `UI/app.rs`, launcher and storage logic in `Services/`,
+and account models in `Models/`.
 
 PR title validation runs for every PR, including title edits and documentation-only
 changes. Workflow linting checks all GitHub Actions workflows with actionlint 1.7.12.
 To run it locally after installing that version, use `actionlint` from the repository root.
 Documentation-only PRs skip the Windows build; application changes still require
-restore, a Release build, and self-tests. UI changes also require manual Windows
+dependency fetching, a Release build, and tests. UI changes also require manual Windows
 checks for resizing and display scaling.
+
+CI and releases share a Windows MSVC dependency cache. CI populates the cache on
+`main` after application or workflow changes and refreshes it on Mondays and Thursdays
+so new PRs can restore a recent default-branch cache. Manual CI dispatches on `main`
+can also populate it. Compiler, dependencies, and Cargo configuration remain part of
+the cache key; changes can still require a fresh build.
 
 ## Branch names
 

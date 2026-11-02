@@ -15,7 +15,7 @@ concurrency:
 jobs:
   title:
     name: Validate pull request title
-    if: github.event_name == 'pull_request'
+    if: (github.event_name == 'pull_request')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

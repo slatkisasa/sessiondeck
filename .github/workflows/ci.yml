@@ -2,6 +2,14 @@ name: CI
 
 on:
   pull_request:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+  # Refresh the main cache before GitHub removes caches idle for seven days.
+  schedule:
+    - cron: "0 6 * * 1,4"
   workflow_dispatch:
 
 permissions:
@@ -45,9 +53,11 @@ jobs:
     name: Build and test (Windows x64)
     needs: changes
     # Keep the required check visible; a skipped workflow would leave it pending.
-    if: always() && needs.changes.outputs.docs_only != 'true'
+    if: (always() && needs.changes.outputs.docs_only != 'true')
     runs-on: windows-latest
     timeout-minutes: 15
+    env:
+      CARGO_BUILD_TARGET: x86_64-pc-windows-msvc
 
     steps:
       - name: Require successful path detection
@@ -58,17 +68,30 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v6
 
-      - name: Set up .NET 8
-        uses: actions/setup-dotnet@v5
+      - name: Set up Rust
+        shell: pwsh
+        run: rustup toolchain install --no-self-update
+
+      - name: Cache Rust dependencies and build artifacts
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
-          dotnet-version: 8.0.x
+          shared-key: windows-msvc
 
       - name: Restore
-        run: dotnet restore SessionDeck.csproj
+        run: cargo fetch --locked
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Lint
+        run: cargo clippy --locked --all-targets -- -D warnings
 
       - name: Build
-        run: dotnet build SessionDeck.csproj --configuration Release --no-restore
+        run: cargo build --locked --release
 
       - name: Run self-tests
-        run: dotnet run --project SessionDeck.csproj --configuration Release --no-build -- --self-test
+        run: cargo test --locked --release
 
+      - name: Package portable executable
+        shell: pwsh
+        run: ./build.ps1
