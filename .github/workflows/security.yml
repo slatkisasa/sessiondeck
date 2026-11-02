@@ -5,6 +5,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: "0 7 * * 1"
 
 permissions:
   contents: read
@@ -40,3 +42,18 @@ jobs:
           python-version: '3.12'
       - run: python scripts/test_privacy.py
       - run: python scripts/check_privacy.py --history
+
+  dependencies:
+    name: Rust dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Install cargo-audit
+        working-directory: ${{ runner.temp }}
+        run: cargo +stable install cargo-audit --version 0.22.2 --locked
+      - name: Check lockfile against RustSec advisories
+        working-directory: ${{ runner.temp }}
+        run: cargo +stable audit --file "$GITHUB_WORKSPACE/Cargo.lock"
