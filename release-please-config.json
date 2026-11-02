@@ -3,6 +3,7 @@
   "packages": {
     ".": {
       "release-type": "simple",
+      "draft": true,
       "package-name": "SessionDeck",
       "changelog-path": "CHANGELOG.md",
       "include-component-in-tag": false,

@@ -64,7 +64,14 @@ Prefer **Squash and merge** so each pull request becomes one clear changelog ent
 1. Merge conventional pull requests into `main`.
 2. Release Please creates or updates a release pull request containing the version bump and changelog.
 3. Merge the release pull request when the accumulated changes are ready to publish.
-4. GitHub Actions creates the tag and GitHub Release, builds the Windows x64 executable, and attaches it with a SHA-256 checksum.
+4. GitHub Actions creates a draft release and an immutable tag, builds and tests the Windows x64 executable, uploads it with a SHA-256 checksum, and then publishes the release.
+
+If building or uploading fails, the release stays in draft. Re-run the failed jobs,
+or manually run the **Release** workflow from `main` with `release_tag` set to the
+existing draft tag (for example `v1.2.3`). Recovery skips Release Please and rebuilds
+the original commit; it replaces draft assets before publishing. Published releases
+are rejected to prevent replacing downloads already in use. Leave `release_tag`
+blank for a normal Release Please run.
 
 Do not manually edit the generated release section in `CHANGELOG.md`; make release-note corrections through the release pull request.
 
@@ -84,7 +91,21 @@ On Windows, install Gitleaks from its official releases, add it to PATH, then ru
 Each clone needs its own hook installation. The hook scans staged content and
 blocks commits when a scanner fails or Gitleaks is missing.
 
-PRs run Secret scan and Privacy scan, including documentation-only changes.
+PRs run Secret scan, Privacy scan, and Rust dependency audit, including documentation-only
+changes. Security checks also run on pushes to `main`, manual dispatches, and weekly
+on Mondays. The dependency audit checks `Cargo.lock` against RustSec advisories and
+fails on known vulnerabilities. Investigate findings and update dependencies; do
+not add blanket advisory exclusions. The current lockfile has informational
+unmaintained-crate warnings for `ttf-parser` (egui font rendering) and the
+`zbus_names`/`zvariant`/`zvariant_derive` family (Linux accessibility). RustSec lists
+no patched versions for these maintenance notices. Keep them visible and review
+them during dependency upgrades; they are not vulnerability exclusions. To run
+it locally:
+
+```sh
+cargo install cargo-audit --version 0.22.2 --locked
+cargo audit --file Cargo.lock
+```
 Gitleaks detects credentials and private keys. The privacy check scans Git history
 in CI and the index locally for email addresses, personal filesystem paths, and
 account/configuration files. Examples must use `example.invalid` (or the reserved

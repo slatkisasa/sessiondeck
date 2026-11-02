@@ -4,8 +4,9 @@ Describe what changed and why.
 
 ## Validation
 
-- [ ] `dotnet build SessionDeck.csproj --configuration Release`
-- [ ] Self-tests pass
+- [ ] Cargo formatting, lint, Release build, and tests pass (see `CONTRIBUTING.md`)
+- [ ] `./build.ps1` packages the Windows executable
+- [ ] Dependency audit and privacy checks pass
 - [ ] Relevant behavior was checked manually
 
 ## Release note

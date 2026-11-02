@@ -9,6 +9,12 @@ on:
       - "docs/**"
       - ".github/**"
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing draft release tag to rebuild and publish (blank runs Release Please)
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -20,13 +26,14 @@ concurrency:
 
 jobs:
   release_please:
-    name: Prepare or create release
+    name: Prepare draft release
+    if: inputs.release_tag == ''
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
-      version: ${{ steps.release.outputs.version }}
+      sha: ${{ steps.release.outputs.sha }}
 
     steps:
       - name: Update release pull request or create release
@@ -36,20 +43,69 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  build-release:
-    name: Build and attach Windows release
+  select-release:
+    name: Resolve release source
     needs: release_please
-    if: (needs.release_please.outputs.release_created == 'true')
+    if: >-
+      always() && !cancelled() &&
+      (inputs.release_tag != '' || needs.release_please.outputs.release_created == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tag_name: ${{ steps.select.outputs.tag_name }}
+      sha: ${{ steps.select.outputs.sha }}
+    steps:
+      - uses: actions/github-script@v8
+        id: select
+        env:
+          RECOVERY_TAG: ${{ inputs.release_tag }}
+          CREATED_TAG: ${{ needs.release_please.outputs.tag_name }}
+          CREATED_SHA: ${{ needs.release_please.outputs.sha }}
+        with:
+          script: |
+            const tag = process.env.RECOVERY_TAG || process.env.CREATED_TAG;
+            if (!/^v\d+\.\d+\.\d+$/.test(tag)) {
+              throw new Error('Expected a stable release tag such as v1.2.3');
+            }
+            // Listing releases with authentication includes unpublished drafts.
+            const releases = await github.paginate(github.rest.repos.listReleases, {
+              ...context.repo, per_page: 100,
+            });
+            const release = releases.find(candidate => candidate.tag_name === tag);
+            if (!release) throw new Error('Release not found');
+            if (!release.draft) throw new Error('Recovery only supports draft releases');
+            const sha = process.env.CREATED_SHA || release.target_commitish;
+            if (!/^[0-9a-f]{40}$/.test(sha)) {
+              throw new Error('Draft release must target an immutable commit SHA');
+            }
+            // Draft releases do not necessarily have a tag until publication.
+            // Create it now so retries always build the same source.
+            try {
+              await github.rest.git.createRef({...context.repo, ref: `refs/tags/${tag}`, sha});
+            } catch (error) {
+              if (error.status !== 422) throw error;
+              const {data: existing} = await github.rest.git.getRef({
+                ...context.repo, ref: `tags/${tag}`,
+              });
+              if (existing.object.sha !== sha) throw new Error('Release tag points at another commit');
+            }
+            core.setOutput('tag_name', tag);
+            core.setOutput('sha', sha);
+
+  build-release:
+    name: Build and publish Windows release
+    needs: select-release
+    if: always() && !cancelled() && needs.select-release.result == 'success'
     runs-on: windows-latest
     timeout-minutes: 20
     env:
       CARGO_BUILD_TARGET: x86_64-pc-windows-msvc
 
     steps:
-      - name: Check out release tag
+      - name: Check out immutable release commit
         uses: actions/checkout@v6
         with:
-          ref: ${{ needs.release_please.outputs.tag_name }}
+          ref: ${{ needs.select-release.outputs.sha }}
 
       - name: Set up Rust
         shell: pwsh
@@ -71,7 +127,7 @@ jobs:
         id: package
         shell: pwsh
         env:
-          RELEASE_TAG: ${{ needs.release_please.outputs.tag_name }}
+          RELEASE_TAG: ${{ needs.select-release.outputs.tag_name }}
         run: |
           $assetName = "SessionDeck.exe"
           New-Item -ItemType Directory -Path release -Force | Out-Null
@@ -85,10 +141,20 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ needs.release_please.outputs.tag_name }}
+          RELEASE_TAG: ${{ needs.select-release.outputs.tag_name }}
           ASSET_NAME: ${{ steps.package.outputs.asset_name }}
         run: |
           gh release upload $env:RELEASE_TAG `
             "release\$env:ASSET_NAME" `
             release\checksums-sha256.txt `
             --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Release asset upload failed.' }
+
+      - name: Publish completed release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.select-release.outputs.tag_name }}
+        run: |
+          gh release edit $env:RELEASE_TAG --draft=false
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }
