@@ -2,6 +2,14 @@ name: CI
 
 on:
   pull_request:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+  # Refresh the main cache before GitHub removes caches idle for seven days.
+  schedule:
+    - cron: "0 6 * * 1,4"
   workflow_dispatch:
 
 permissions:
@@ -62,10 +70,12 @@ jobs:
 
       - name: Set up Rust
         shell: pwsh
-        run: rustup update stable
+        run: rustup toolchain install --no-self-update
 
       - name: Cache Rust dependencies and build artifacts
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          shared-key: windows-msvc
 
       - name: Restore
         run: cargo fetch --locked

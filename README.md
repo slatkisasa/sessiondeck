@@ -72,7 +72,7 @@ To uninstall, delete `SessionDeck.exe`. To also remove its saved names and backu
 
 ## Build and contribute
 
-Install Rust stable with the MSVC C++ toolchain and Windows SDK, then run `.\build.ps1` in PowerShell on Windows. The portable executable is written to `dist\SessionDeck.exe`.
+Install Rust via rustup with the MSVC C++ toolchain and Windows SDK (the repository pins the Rust version), then run `.\build.ps1` in PowerShell on Windows. The portable executable is written to `dist\SessionDeck.exe`.
 
 To check the source before packaging:
 

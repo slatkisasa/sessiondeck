@@ -53,10 +53,12 @@ jobs:
 
       - name: Set up Rust
         shell: pwsh
-        run: rustup update stable
+        run: rustup toolchain install --no-self-update
 
       - name: Cache Rust dependencies and build artifacts
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          shared-key: windows-msvc
 
       - name: Run self-tests
         run: cargo test --locked --release

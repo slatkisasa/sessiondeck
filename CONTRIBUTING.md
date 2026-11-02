@@ -4,7 +4,9 @@ Development uses short-lived branches and pull requests into `main`.
 
 ## Build and verify
 
-Use Rust stable on Windows with the MSVC C++ toolchain and Windows SDK. Before submitting changes, run:
+Use Rust via rustup on Windows with the MSVC C++ toolchain and Windows SDK.
+`rust-toolchain.toml` pins the compiler and required components for local builds, CI,
+and releases. Update the pinned version deliberately in a pull request. Before submitting changes, run:
 
 ```powershell
 cargo fetch --locked
@@ -27,6 +29,12 @@ To run it locally after installing that version, use `actionlint` from the repos
 Documentation-only PRs skip the Windows build; application changes still require
 dependency fetching, a Release build, and tests. UI changes also require manual Windows
 checks for resizing and display scaling.
+
+CI and releases share a Windows MSVC dependency cache. CI populates the cache on
+`main` after application or workflow changes and refreshes it on Mondays and Thursdays
+so new PRs can restore a recent default-branch cache. Manual CI dispatches on `main`
+can also populate it. Compiler, dependencies, and Cargo configuration remain part of
+the cache key; changes can still require a fresh build.
 
 ## Branch names
 
