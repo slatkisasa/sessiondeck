@@ -42,6 +42,8 @@ jobs:
     if: (needs.release_please.outputs.release_created == 'true')
     runs-on: windows-latest
     timeout-minutes: 20
+    env:
+      CARGO_BUILD_TARGET: x86_64-pc-windows-msvc
 
     steps:
       - name: Check out release tag
@@ -52,6 +54,9 @@ jobs:
       - name: Set up Rust
         shell: pwsh
         run: rustup update stable
+
+      - name: Cache Rust dependencies and build artifacts
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
 
       - name: Run self-tests
         run: cargo test --locked --release
