@@ -137,3 +137,27 @@ paths on PRs and pushes. Rust also scans after Cargo/toolchain, asset, or packag
 changes. CodeQL workflow and path-detector changes run all three language scans.
 Weekly and manual runs scan all three. Legacy C# is not scanned. Keep default setup
 disabled so GitHub accepts analysis uploads from this workflow.
+
+## Repository automation
+
+Dependabot checks Cargo and GitHub Actions dependencies weekly, groups routine
+version updates by ecosystem, and limits each ecosystem to three open version PRs.
+Security updates are enabled separately in GitHub repository settings. Review
+updates and run the required checks before merging. Keep workflow actions pinned
+to full commit SHAs with version comments so Dependabot can maintain them.
+
+The main ruleset requires the Windows build, secret and privacy scans, Rust
+dependency audit, PR title validation, and workflow linting. Review conversations
+must be resolved before merging. Squash commits use the validated PR title.
+
+Actions default to read-only permissions. GitHub-owned actions and the existing
+Rust cache, Gitleaks, and Release Please actions are allowed; introducing another
+third-party action requires updating the repository allowlist. Fork workflows
+require approval for all external contributors. Keep the Actions permission to
+create pull requests enabled for Release Please.
+
+Repository-wide SHA enforcement can be enabled after the pinned workflows have
+merged into `main`; enabling it earlier would block workflows on the old branch.
+Wiki, Projects, and existing security agents are unchanged.
+
+See [SECURITY.md](SECURITY.md) to report suspected vulnerabilities privately.
