@@ -26,8 +26,14 @@ and account models in `Models/`.
 PR title validation runs for every PR, including title edits and documentation-only
 changes. Workflow linting checks all GitHub Actions workflows with actionlint 1.7.12.
 To run it locally after installing that version, use `actionlint` from the repository root.
-Documentation-only PRs skip the Windows build; application changes still require
-dependency fetching, a Release build, and tests. UI changes also require manual Windows
+Windows build/tests run for Rust source, Cargo/toolchain configuration, assets,
+packaging scripts, and build/release workflow changes. Release Please configuration
+and documentation alone skip that job. The dependency audit runs for Cargo/toolchain
+changes and its own workflow. Secret/privacy scans, title validation, workflow lint,
+and changed-path regression tests remain on every PR. Skipped jobs retain their
+required check names and count as passing; detection errors fail the required jobs.
+Renames check both paths, and incomplete changed-file lists run every check.
+Scheduled and manual runs always run full checks. UI changes also require manual Windows
 checks for resizing and display scaling.
 
 CI and releases share a Windows MSVC dependency cache. CI populates the cache on
@@ -91,8 +97,9 @@ On Windows, install Gitleaks from its official releases, add it to PATH, then ru
 Each clone needs its own hook installation. The hook scans staged content and
 blocks commits when a scanner fails or Gitleaks is missing.
 
-PRs run Secret scan, Privacy scan, and Rust dependency audit, including documentation-only
-changes. Security checks also run on pushes to `main`, manual dispatches, and weekly
+PRs run Secret scan and Privacy scan, including documentation-only changes.
+Rust dependency audits run when Cargo/toolchain inputs or the audit workflow change.
+Security checks also run on pushes to `main`, manual dispatches, and weekly
 on Mondays. The dependency audit checks `Cargo.lock` against RustSec advisories and
 fails on known vulnerabilities. Investigate findings and update dependencies; do
 not add blanket advisory exclusions. The current lockfile has informational
@@ -121,3 +128,12 @@ These checks do not recognize arbitrary private IDs or personal data in images.
 Review screenshots manually. Ignore rules are a convenience, not a security
 boundary. GitHub push protection blocks supported credentials before upload;
 PR checks run after upload. If a real credential leaks, revoke it immediately.
+
+## CodeQL scope
+
+The repository uses the checked-in `codeql.yml` workflow (advanced setup), replacing
+GitHub's default setup. Rust, Python, and Actions scans run only for their relevant
+paths on PRs and pushes. Rust also scans after Cargo/toolchain, asset, or packaging
+changes. CodeQL workflow and path-detector changes run all three language scans.
+Weekly and manual runs scan all three. Legacy C# is not scanned. Keep default setup
+disabled so GitHub accepts analysis uploads from this workflow.

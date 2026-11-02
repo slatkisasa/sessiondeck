@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const pattern = /^(feat|fix|perf|refactor|docs|test|build|ci|chore|revert)(\([a-z0-9._-]+\))?!?: \S[^\r\n]*$/;
@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
       - name: Install actionlint 1.7.12
@@ -45,5 +45,7 @@ jobs:
           mkdir -p actionlint-bin
           tar -xzf actionlint.tar.gz -C actionlint-bin actionlint
           echo "$PWD/actionlint-bin" >> "$GITHUB_PATH"
+      - name: Test changed-path selection
+        run: node .github/scripts/test-changes.cjs
       - name: Check all workflows
         run: actionlint -color

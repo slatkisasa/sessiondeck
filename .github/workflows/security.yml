@@ -10,14 +10,22 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  changes:
+    uses: ./.github/workflows/changes.yml
+
   secrets:
     name: Secret scan
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -33,11 +41,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
       - run: python scripts/test_privacy.py
@@ -45,10 +53,15 @@ jobs:
 
   dependencies:
     name: Rust dependency audit
+    needs: changes
+    if: always() && !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.dependencies == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - name: Require successful path detection
+        if: needs.changes.result != 'success'
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
       - name: Install cargo-audit
