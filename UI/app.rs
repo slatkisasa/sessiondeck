@@ -62,6 +62,22 @@ fn secondary_button(text: &str) -> egui::Button<'_> {
         .min_size(egui::vec2(0., 36.))
 }
 
+fn download_update_button(ui: &mut egui::Ui) {
+    if ui
+        .add(
+            egui::Button::new(RichText::new("Download update").color(BACKGROUND).strong())
+                .fill(CURRENT)
+                .corner_radius(7)
+                .min_size(egui::vec2(0., 36.)),
+        )
+        .on_hover_text("Open the latest SessionDeck release on GitHub")
+        .clicked()
+    {
+        ui.ctx()
+            .open_url(egui::OpenUrl::new_tab(crate::updates::RELEASE_URL));
+    }
+}
+
 fn account_row(
     ui: &mut egui::Ui,
     account: &Account,
@@ -493,14 +509,6 @@ impl Deck {
                         );
                     }
                     ui.label(RichText::new(&self.status).size(12.).color(MUTED));
-                    if let Some(crate::updates::CheckResult::Available(version)) =
-                        &self.update_result
-                    {
-                        ui.hyperlink_to(
-                            format!("Update available: {version}"),
-                            crate::updates::RELEASE_URL,
-                        );
-                    }
                 });
             });
         egui::TopBottomPanel::bottom("actions")
@@ -583,6 +591,25 @@ impl Deck {
                     });
                 });
                 ui.label(RichText::new("Your accounts. One place. Back to the game.").color(MUTED));
+                if let Some(crate::updates::CheckResult::Available(version)) = &self.update_result {
+                    ui.add_space(12.);
+                    egui::Frame::new()
+                        .fill(Color32::from_rgb(28, 45, 37))
+                        .stroke(egui::Stroke::new(1.0_f32, CURRENT.gamma_multiply(0.5)))
+                        .corner_radius(8)
+                        .inner_margin(12.)
+                        .show(ui, |ui| {
+                            ui.set_width(ui.available_width());
+                            ui.horizontal_wrapped(|ui| {
+                                ui.label(
+                                    RichText::new(format!("Version {version} is available"))
+                                        .color(CURRENT)
+                                        .strong(),
+                                );
+                                download_update_button(ui);
+                            });
+                        });
+                }
                 ui.add_space(22.);
                 ui.horizontal(|ui| {
                     ui.label(
@@ -678,10 +705,24 @@ impl Deck {
                         )
                         .clicked();
                     if !self.update_status.is_empty() {
-                        ui.label(&self.update_status);
+                        let color = if self.update_receiver.is_none()
+                            && matches!(
+                                self.update_result,
+                                Some(
+                                    crate::updates::CheckResult::Available(_)
+                                        | crate::updates::CheckResult::Current
+                                )
+                            )
+                            && !self.update_status.starts_with("Could not")
+                        {
+                            CURRENT
+                        } else {
+                            MUTED
+                        };
+                        ui.label(RichText::new(&self.update_status).color(color));
                     }
                     if let Some(crate::updates::CheckResult::Available(_)) = &self.update_result {
-                        ui.hyperlink_to("View release and download", crate::updates::RELEASE_URL);
+                        download_update_button(ui);
                     }
                     ui.separator();
                     ui.label(RichText::new("Battle.net launcher").strong());
@@ -886,7 +927,20 @@ mod layout_tests {
                     ));
                 }
                 let mut found = false;
+                let mut found_download = false;
+                let mut found_notice = false;
                 for shape in output.unwrap().shapes {
+                    if let egui::Shape::Text(text) = &shape.shape {
+                        let label = text.galley.text();
+                        if label == "Download update" || label == "Version 1.0.0 is available" {
+                            found_download |= label == "Download update";
+                            found_notice |= label == "Version 1.0.0 is available";
+                            assert!(screen.contains_rect(egui::Rect::from_min_size(
+                                text.pos,
+                                text.galley.size()
+                            )));
+                        }
+                    }
                     if let egui::Shape::Text(text) = shape.shape
                         && text.galley.text() == "Check for updates"
                     {
@@ -898,6 +952,14 @@ mod layout_tests {
                     }
                 }
                 assert!(found, "update button missing at {size:?}, scale {scale}");
+                assert!(
+                    found_download,
+                    "download button missing at {size:?}, scale {scale}"
+                );
+                assert!(
+                    found_notice,
+                    "update banner missing at {size:?}, scale {scale}"
+                );
             }
         }
     }
