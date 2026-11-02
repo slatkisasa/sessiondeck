@@ -22,38 +22,13 @@ concurrency:
 
 jobs:
   changes:
-    name: Detect documentation-only changes
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      docs_only: ${{ steps.changes.outputs.docs_only }}
-    steps:
-      - name: Check changed paths
-        id: changes
-        uses: actions/github-script@v8
-        with:
-          script: |
-            if (context.eventName !== 'pull_request') {
-              core.setOutput('docs_only', 'false');
-              return;
-            }
-            const files = await github.paginate(github.rest.pulls.listFiles, {
-              ...context.repo,
-              pull_number: context.issue.number,
-              per_page: 100,
-            });
-            const isDocumentation = path => path.startsWith('docs/') || path.endsWith('.md');
-            // The API returns at most 3,000 files. Build if the list may be incomplete.
-            const docsOnly = files.length > 0 && files.length < 3000 && files.every(file =>
-              isDocumentation(file.filename) &&
-              (!file.previous_filename || isDocumentation(file.previous_filename)));
-            core.setOutput('docs_only', String(docsOnly));
+    uses: ./.github/workflows/changes.yml
 
   build-and-test:
     name: Build and test (Windows x64)
     needs: changes
     # Keep the required check visible; a skipped workflow would leave it pending.
-    if: (always() && needs.changes.outputs.docs_only != 'true')
+    if: always() && !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.build == 'true')
     runs-on: windows-latest
     timeout-minutes: 15
     env:
@@ -66,7 +41,7 @@ jobs:
         run: throw 'Changed-path detection failed; refusing to bypass CI.'
 
       - name: Check out source
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Set up Rust
         shell: pwsh

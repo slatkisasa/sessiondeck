@@ -1,0 +1,39 @@
+name: Changed paths
+
+on:
+  workflow_call:
+    outputs:
+      build:
+        value: ${{ jobs.changes.outputs.build }}
+      dependencies:
+        value: ${{ jobs.changes.outputs.dependencies }}
+      languages:
+        value: ${{ jobs.changes.outputs.languages }}
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changes:
+    name: Detect relevant changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.scope.outputs.build }}
+      dependencies: ${{ steps.scope.outputs.dependencies }}
+      languages: ${{ steps.scope.outputs.languages }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        id: scope
+        with:
+          script: |
+            const {detect} = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/changes.cjs`);
+            const scope = await detect({github, context});
+            core.setOutput('build', String(scope.build));
+            core.setOutput('dependencies', String(scope.dependencies));
+            core.setOutput('languages', JSON.stringify(scope.languages));
+            core.info(JSON.stringify(scope));
