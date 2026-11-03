@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/slatkisasa/sessiondeck/compare/v1.0.1...v1.1.0) (2026-11-03)
+
+
+### Features
+
+* make available updates more visible ([#15](https://github.com/slatkisasa/sessiondeck/issues/15)) ([cb45d7a](https://github.com/slatkisasa/sessiondeck/commit/cb45d7a6eb52a87f05966ee90f29404f89bb4cfe))
+
 ## [1.0.1](https://github.com/slatkisasa/sessiondeck/compare/v1.0.0...v1.0.1) (2026-11-02)
 
 
