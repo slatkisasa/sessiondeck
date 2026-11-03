@@ -62,6 +62,22 @@ fn secondary_button(text: &str) -> egui::Button<'_> {
         .min_size(egui::vec2(0., 36.))
 }
 
+fn download_update_button(ui: &mut egui::Ui) {
+    if ui
+        .add(
+            egui::Button::new(RichText::new("Download update").color(BACKGROUND).strong())
+                .fill(CURRENT)
+                .corner_radius(7)
+                .min_size(egui::vec2(0., 36.)),
+        )
+        .on_hover_text("Open the latest SessionDeck release on GitHub")
+        .clicked()
+    {
+        ui.ctx()
+            .open_url(egui::OpenUrl::new_tab(crate::updates::RELEASE_URL));
+    }
+}
+
 fn account_row(
     ui: &mut egui::Ui,
     account: &Account,
@@ -220,6 +236,7 @@ pub struct Deck {
     update_receiver: Option<mpsc::Receiver<anyhow::Result<crate::updates::CheckResult>>>,
     update_result: Option<crate::updates::CheckResult>,
     update_status: String,
+    update_check_failed: bool,
 }
 enum Dialog {
     Capture,
@@ -270,6 +287,7 @@ impl Deck {
             update_receiver: None,
             update_result: None,
             update_status: String::new(),
+            update_check_failed: false,
         };
         deck.sort();
         deck
@@ -281,6 +299,7 @@ impl Deck {
         let (tx, rx) = mpsc::channel();
         self.update_receiver = Some(rx);
         self.update_status = "Checking for updates…".into();
+        self.update_check_failed = false;
         let ctx = ctx.clone();
         std::thread::spawn(move || {
             let _ = tx.send(crate::updates::check());
@@ -303,6 +322,7 @@ impl Deck {
             self.update_receiver = None;
             match result {
                 Ok(result) => {
+                    self.update_check_failed = false;
                     self.update_status = match &result {
                         crate::updates::CheckResult::Available(version) => {
                             format!("Version {version} is available.")
@@ -315,6 +335,7 @@ impl Deck {
                     self.update_result = Some(result);
                 }
                 Err(_) => {
+                    self.update_check_failed = true;
                     self.update_status =
                         "Could not check for updates. Please try again later.".into()
                 }
@@ -493,14 +514,6 @@ impl Deck {
                         );
                     }
                     ui.label(RichText::new(&self.status).size(12.).color(MUTED));
-                    if let Some(crate::updates::CheckResult::Available(version)) =
-                        &self.update_result
-                    {
-                        ui.hyperlink_to(
-                            format!("Update available: {version}"),
-                            crate::updates::RELEASE_URL,
-                        );
-                    }
                 });
             });
         egui::TopBottomPanel::bottom("actions")
@@ -583,6 +596,25 @@ impl Deck {
                     });
                 });
                 ui.label(RichText::new("Your accounts. One place. Back to the game.").color(MUTED));
+                if let Some(crate::updates::CheckResult::Available(version)) = &self.update_result {
+                    ui.add_space(12.);
+                    egui::Frame::new()
+                        .fill(Color32::from_rgb(28, 45, 37))
+                        .stroke(egui::Stroke::new(1.0_f32, CURRENT.gamma_multiply(0.5)))
+                        .corner_radius(8)
+                        .inner_margin(12.)
+                        .show(ui, |ui| {
+                            ui.set_width(ui.available_width());
+                            ui.horizontal_wrapped(|ui| {
+                                ui.label(
+                                    RichText::new(format!("Version {version} is available"))
+                                        .color(CURRENT)
+                                        .strong(),
+                                );
+                                download_update_button(ui);
+                            });
+                        });
+                }
                 ui.add_space(22.);
                 ui.horizontal(|ui| {
                     ui.label(
@@ -629,15 +661,20 @@ impl Deck {
                     if self.accounts.is_empty() {
                         let height = ui.available_height();
                         ui.vertical_centered(|ui| {
-                            ui.add_space((height * 0.5 - 100.).max(8.));
-                            if height > 230. {
-                                ui.label(RichText::new("//").monospace().size(36.).color(ACCENT));
-                                ui.add_space(10.);
+                            // At minimum height the update banner leaves room for the
+                            // action, but not the decorative empty-state copy.
+                            let compact = height < 150.;
+                            if !compact {
+                                ui.add_space((height * 0.5 - 100.).max(8.));
+                                if height > 230. {
+                                    ui.label(RichText::new("//").monospace().size(36.).color(ACCENT));
+                                    ui.add_space(10.);
+                                }
+                                ui.label(RichText::new(if self.storage_ok { "Your next session starts here" } else { "Your saved accounts need attention" }).size(21.).strong());
+                                ui.add_space(8.);
+                                ui.label(RichText::new(if self.storage_ok { "Sign in to Battle.net, then save your current account." } else { "Your account file has been left unchanged. See the status below." }).size(13.).color(MUTED));
+                                ui.add_space(18.);
                             }
-                            ui.label(RichText::new(if self.storage_ok { "Your next session starts here" } else { "Your saved accounts need attention" }).size(21.).strong());
-                            ui.add_space(8.);
-                            ui.label(RichText::new(if self.storage_ok { "Sign in to Battle.net, then save your current account." } else { "Your account file has been left unchanged. See the status below." }).size(13.).color(MUTED));
-                            ui.add_space(18.);
                             if self.damaged.is_some() {
                                 if ui.add_enabled(self.dialog.is_none(), primary_button("Recover saved accounts", [190., 40.])).clicked() { self.dialog = Some(Dialog::Recover); }
                             } else if ui.add_enabled(enabled, primary_button("+ Add your first account", [190., 40.])).clicked() { self.dialog = Some(Dialog::SignIn); }
@@ -678,10 +715,24 @@ impl Deck {
                         )
                         .clicked();
                     if !self.update_status.is_empty() {
-                        ui.label(&self.update_status);
+                        let color = if self.update_receiver.is_none()
+                            && matches!(
+                                self.update_result,
+                                Some(
+                                    crate::updates::CheckResult::Available(_)
+                                        | crate::updates::CheckResult::Current
+                                )
+                            )
+                            && !self.update_check_failed
+                        {
+                            CURRENT
+                        } else {
+                            MUTED
+                        };
+                        ui.label(RichText::new(&self.update_status).color(color));
                     }
                     if let Some(crate::updates::CheckResult::Available(_)) = &self.update_result {
-                        ui.hyperlink_to("View release and download", crate::updates::RELEASE_URL);
+                        download_update_button(ui);
                     }
                     ui.separator();
                     ui.label(RichText::new("Battle.net launcher").strong());
@@ -840,16 +891,79 @@ mod layout_tests {
         deck.poll_updates();
         assert!(deck.update_receiver.is_none());
         assert!(deck.update_status.contains("1.0.0"));
+        assert!(!deck.update_check_failed);
         let (tx, rx) = mpsc::channel();
         deck.update_receiver = Some(rx);
         tx.send(Err(anyhow::anyhow!("offline"))).unwrap();
         deck.poll_updates();
         assert!(deck.update_status.contains("Could not check"));
+        assert!(deck.update_check_failed);
         assert!(matches!(
             deck.update_result,
             Some(crate::updates::CheckResult::Available(_))
         ));
         assert!(deck.update_receiver.is_none());
+    }
+
+    #[test]
+    fn update_banner_keeps_empty_state_actions_inside_their_clip_rect() {
+        let dir = tempfile::tempdir().unwrap();
+        for scale in [1.0, 1.5, 2.0] {
+            for size in [
+                egui::vec2(640., 460.),
+                egui::vec2(860., 560.),
+                egui::vec2(1600., 1000.),
+            ] {
+                for damaged in [false, true] {
+                    let ctx = egui::Context::default();
+                    configure_theme(&ctx);
+                    ctx.set_pixels_per_point(scale);
+                    let mut deck = Deck::load(Paths {
+                        data: dir.path().join("metadata"),
+                        config: dir.path().join("config.json"),
+                        launcher: dir.path().join("launcher.exe"),
+                    });
+                    deck.damaged = damaged.then(Vec::new);
+                    deck.update_result = Some(crate::updates::CheckResult::Available(
+                        semver::Version::new(1, 0, 0),
+                    ));
+                    let label = if damaged {
+                        "Recover saved accounts"
+                    } else {
+                        "+ Add your first account"
+                    };
+                    let mut output = None;
+                    for _ in 0..3 {
+                        output = Some(ctx.run(
+                            egui::RawInput {
+                                screen_rect: Some(egui::Rect::from_min_size(
+                                    egui::Pos2::ZERO,
+                                    size,
+                                )),
+                                ..Default::default()
+                            },
+                            |ctx| deck.render(ctx),
+                        ));
+                    }
+                    let mut found = false;
+                    for shape in output.unwrap().shapes {
+                        if let egui::Shape::Text(text) = shape.shape
+                            && text.galley.text() == label
+                        {
+                            found = true;
+                            assert!(
+                                shape.clip_rect.contains_rect(egui::Rect::from_min_size(
+                                    text.pos,
+                                    text.galley.size()
+                                )),
+                                "{label} clipped at {size:?}, scale {scale}"
+                            );
+                        }
+                    }
+                    assert!(found, "{label} missing at {size:?}, scale {scale}");
+                }
+            }
+        }
     }
 
     #[test]
@@ -886,7 +1000,20 @@ mod layout_tests {
                     ));
                 }
                 let mut found = false;
+                let mut found_download = false;
+                let mut found_notice = false;
                 for shape in output.unwrap().shapes {
+                    if let egui::Shape::Text(text) = &shape.shape {
+                        let label = text.galley.text();
+                        if label == "Download update" || label == "Version 1.0.0 is available" {
+                            found_download |= label == "Download update";
+                            found_notice |= label == "Version 1.0.0 is available";
+                            assert!(screen.contains_rect(egui::Rect::from_min_size(
+                                text.pos,
+                                text.galley.size()
+                            )));
+                        }
+                    }
                     if let egui::Shape::Text(text) = shape.shape
                         && text.galley.text() == "Check for updates"
                     {
@@ -898,6 +1025,14 @@ mod layout_tests {
                     }
                 }
                 assert!(found, "update button missing at {size:?}, scale {scale}");
+                assert!(
+                    found_download,
+                    "download button missing at {size:?}, scale {scale}"
+                );
+                assert!(
+                    found_notice,
+                    "update banner missing at {size:?}, scale {scale}"
+                );
             }
         }
     }
