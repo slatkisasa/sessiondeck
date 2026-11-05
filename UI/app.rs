@@ -409,6 +409,48 @@ impl Deck {
             }
         }
     }
+    fn save_account_changes(&mut self, mode: Dialog) {
+        let message = match &mode {
+            Dialog::Capture => {
+                "Account saved. Select it and click Switch account when you want to use it."
+            }
+            Dialog::Rename => "Account renamed.",
+            Dialog::Remove => {
+                "Account removed from your deck. Its Battle.net session is unchanged."
+            }
+            _ => unreachable!(),
+        };
+        let mut accounts = self.accounts.clone();
+        let mut captured_selection = None;
+        match mode {
+            Dialog::Capture => {
+                if let Some(a) = accounts
+                    .iter_mut()
+                    .find(|a| same_identifier(&a.account_identifier, &self.identifier))
+                {
+                    a.display_name = self.name.trim().into();
+                } else {
+                    let mut a = Account::new(self.identifier.clone());
+                    a.display_name = self.name.trim().into();
+                    captured_selection = Some(a.id);
+                    accounts.push(a);
+                }
+            }
+            Dialog::Rename => {
+                if let Some(a) = accounts.iter_mut().find(|a| Some(a.id) == self.selected) {
+                    a.display_name = self.name.trim().into();
+                }
+            }
+            Dialog::Remove => accounts.retain(|a| Some(a.id) != self.selected),
+            _ => unreachable!(),
+        }
+        if self.persist(accounts) {
+            if let Some(id) = captured_selection {
+                self.selected = Some(id);
+            }
+            self.status = message.into();
+        }
+    }
     fn capture(&mut self) {
         match self.paths.remembered() {
             Ok(ids) if !ids.is_empty() => {
@@ -817,43 +859,7 @@ Cancel leaves the original file unchanged."); },
                         }
                     }
                     mode => {
-                        let message = match &mode {
-                            Dialog::Capture => {
-                                "Account saved. Select it and click Switch account when you want to use it."
-                            }
-                            Dialog::Rename => "Account renamed.",
-                            Dialog::Remove => {
-                                "Account removed from your deck. Its Battle.net session is unchanged."
-                            }
-                            _ => unreachable!(),
-                        };
-                        let mut accounts = self.accounts.clone();
-                        match mode {
-                            Dialog::Capture => {
-                                if let Some(a) = accounts.iter_mut().find(|a| {
-                                    same_identifier(&a.account_identifier, &self.identifier)
-                                }) {
-                                    a.display_name = self.name.trim().into();
-                                } else {
-                                    let mut a = Account::new(self.identifier.clone());
-                                    a.display_name = self.name.trim().into();
-                                    self.selected = Some(a.id);
-                                    accounts.push(a);
-                                }
-                            }
-                            Dialog::Rename => {
-                                if let Some(a) =
-                                    accounts.iter_mut().find(|a| Some(a.id) == self.selected)
-                                {
-                                    a.display_name = self.name.trim().into();
-                                }
-                            }
-                            Dialog::Remove => accounts.retain(|a| Some(a.id) != self.selected),
-                            _ => unreachable!(),
-                        }
-                        if self.persist(accounts) {
-                            self.status = message.into();
-                        }
+                        self.save_account_changes(mode);
                     }
                 }
             } else if dismiss {
@@ -872,6 +878,58 @@ impl eframe::App for Deck {
 #[cfg(test)]
 mod layout_tests {
     use super::*;
+
+    #[test]
+    fn capture_selection_and_accounts_change_only_after_successful_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            data: dir.path().join("metadata"),
+            config: dir.path().join("config.json"),
+            launcher: dir.path().join("launcher.exe"),
+        };
+        let original = Account::new("original@example.invalid".into());
+        paths.save(std::slice::from_ref(&original)).unwrap();
+        let mut deck = Deck::load(paths);
+        let before = serde_json::to_value(&deck.accounts).unwrap();
+        let metadata = deck.paths.data.join("accounts.json");
+        let saved = std::fs::read(&metadata).unwrap();
+        // A file in place of the data directory reliably blocks writes on all platforms.
+        let data = deck.paths.data.clone();
+        let blocked = dir.path().join("blocked");
+        std::fs::write(&blocked, b"block writes").unwrap();
+        deck.paths.data = blocked;
+        deck.identifier = "new@example.invalid".into();
+        deck.name = "New account".into();
+        deck.save_account_changes(Dialog::Capture);
+        assert!(deck.status.starts_with("Could not save accounts:"));
+        assert_eq!(deck.selected, Some(original.id));
+        assert_eq!(serde_json::to_value(&deck.accounts).unwrap(), before);
+        assert_eq!(std::fs::read(&metadata).unwrap(), saved);
+
+        deck.paths.data = data;
+        deck.save_account_changes(Dialog::Capture);
+        assert_eq!(deck.accounts.len(), 2);
+        let captured = deck
+            .accounts
+            .iter()
+            .find(|a| a.account_identifier == deck.identifier)
+            .unwrap();
+        assert_eq!(captured.display_name, "New account");
+        assert_eq!(deck.selected, Some(captured.id));
+        let stored = deck.paths.load().unwrap();
+        assert_eq!(stored.len(), deck.accounts.len());
+        for account in &deck.accounts {
+            assert_eq!(
+                serde_json::to_value(stored.iter().find(|a| a.id == account.id).unwrap()).unwrap(),
+                serde_json::to_value(account).unwrap()
+            );
+        }
+        assert_eq!(
+            serde_json::to_value(deck.accounts.iter().find(|a| a.id == original.id).unwrap())
+                .unwrap(),
+            before[0]
+        );
+    }
 
     #[test]
     fn update_checks_do_not_overlap_and_failures_preserve_available_release() {
