@@ -4,8 +4,7 @@ This is a working list of possible improvements. It is not a release schedule, a
 
 ## Next improvements
 
-- Upgrade the project from .NET 8 to .NET 10 LTS.
-- Let users choose a custom Battle.net installation path when it cannot be found automatically.
+- Persist the custom Battle.net launcher path across restarts; Settings already supports changing it for the current run.
 - Add a simple way to view and restore SessionDeck's configuration backups.
 - Improve error messages and troubleshooting details.
 - Add more automated tests for configuration changes and recovery after errors.
@@ -19,7 +18,7 @@ This is a working list of possible improvements. It is not a release schedule, a
 - Add optional startup with Windows.
 - Add ARM64 support.
 - Code-sign release executables when a suitable certificate is available.
-- Add an optional update notification that does not send account information.
+- Make automatic update checks opt-in and persist the preference. The Rust app already checks public GitHub release metadata at startup, offers a manual check in Settings, and displays an update banner with a download link; these checks send no account information.
 
 ## Privacy and safety rules
 
